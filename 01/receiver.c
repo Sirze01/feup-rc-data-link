@@ -51,11 +51,6 @@ int main(int argc, char **argv) {
   newtio.c_cc[VTIME] = 0; /* inter-character timer unused */
   newtio.c_cc[VMIN] = 5;  /* blocking read until 5 chars received */
 
-  /*
-    VTIME e VMIN devem ser alterados de forma a proteger com um temporizador a
-    leitura do(s) pr�ximo(s) caracter(es)
-  */
-
   tcflush(fd, TCIOFLUSH);
 
   if (tcsetattr(fd, TCSANOW, &newtio) == -1) {
@@ -66,19 +61,16 @@ int main(int argc, char **argv) {
   printf("New termios structure set\n");
   int i = 0;
   buf[254] = '\0';
-  while (STOP == FALSE && i<254) {     /* loop for input */
-    res = read(fd, buf + i, 1); /* returns after 5 chars have been input */
-    if(buf[i] == '\0')
+  while (STOP == FALSE && i < 254) { /* loop for input */
+    res = read(fd, buf + i, 1);      /* returns after 5 chars have been input */
+    if (buf[i] == '\0')
       STOP = TRUE;
-    i++;  
+    i++;
   }
   printf("%d bytes read : Message received: %s\n", i, buf);
 
   res = write(fd, buf, strlen(buf) + 1);
   printf("%d bytes written : Message sent\n", res);
-  /*
-    O ciclo WHILE deve ser alterado de modo a respeitar o indicado no gui�o
-  */
 
   tcsetattr(fd, TCSANOW, &oldtio);
   close(fd);
