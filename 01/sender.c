@@ -18,10 +18,10 @@
 volatile int STOP = FALSE;
 
 int main(int argc, char **argv) {
-  int fd, c, res;
+  int fd, res;
   struct termios oldtio, newtio;
   char buf[255];
-  int i, sum = 0, speed = 0;
+  int i;
 
   if (argc < 2) {
     printf("Usage:\tnserial SerialPort\n\tex: nserial /dev/ttyS1\n");
@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
 
   res = write(fd, buf, strlen(buf) + 1);
   printf("%d bytes written : Message sent\n", res);
- 
+
   i = 0;
   buf[254] = '\0';
   while (STOP == FALSE && i < 254) {
