@@ -84,6 +84,10 @@ SUFrame *assemble_suframe(DeviceRole role, char ctr) {
     frame->bcc1 = byte_xor(fields, sizeof fields);
 
     frame->frame = (char *)malloc(SUF_FRAME_SIZE);
+    if (frame->frame == NULL) {
+        perror("Memory allocation for suframe failed");
+        return NULL;
+    }
     frame->frame[0] = frame->flg;
     frame->frame[1] = frame->addr;
     frame->frame[2] = frame->ctr;
@@ -113,6 +117,10 @@ IFrame *assemble_iframe(DeviceRole role, char ctr, int size, char *data) {
 
     frame->frame =
         (char *)malloc(IF_FIELDS_SIZE + frame->data_size * sizeof(char));
+    if (frame->frame == NULL) {
+        perror("Memory allocation for iframe failed");
+        return NULL;
+    }
     frame->frame[0] = frame->flg;
     frame->frame[1] = frame->addr;
     frame->frame[2] = frame->ctr;
