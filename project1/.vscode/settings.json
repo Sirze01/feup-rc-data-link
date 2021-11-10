@@ -6,7 +6,11 @@
     "editor.wordWrapColumn": 150,
     "files.associations": {
         "stat.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "limits.h": "c",
+        "strings.h": "c",
+        "termios.h": "c",
+        "features.h": "c"
     },
     "cpplint.filters": [
         "-whitespace",
