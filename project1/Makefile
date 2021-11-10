@@ -1,4 +1,4 @@
-CC = cc 
+CC = gcc 
 CFLAGS = -Wall -Werror
 PROG_NAME = application
 

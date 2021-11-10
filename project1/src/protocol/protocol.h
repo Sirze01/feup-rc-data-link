@@ -1,9 +1,13 @@
+#pragma once
+
 #include <termios.h>
 
 #define BAUDRATE B38400
 
-#define TRANSMITTER 0
-#define RECEIVER 1
+typedef enum DeviceRole {
+    TRANSMITTER,
+    RECEIVER
+} DeviceRole;
 
 /**
  * @brief Open a data link on /dev/ttyS<port> with given role.
@@ -12,7 +16,7 @@
  * @param role one of TRANSMITTER, RECEIVER
  * @return opened file descriptor, -1 in case of error
  */
-int llopen(int port, char role);
+int llopen(int port, DeviceRole role);
 
 /**
  * @brief Write packet with given length to a previously opened data link.

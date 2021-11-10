@@ -1,3 +1,5 @@
+#pragma once
+
 /* INFORMATION FRAME */
 /* F A C BCC1 Data BCC2 F */
 #define IF_ADDRESS_SENDER_COMMANDS 0x03
@@ -16,7 +18,6 @@
 #define F_FLAG 0x07e
 #define F_ESCAPE_CHAR 0x7d
 
-char BCC1(char A, char C);
-char BBC2(char *data, int size);
+char byte_xor(char *data, int size);
 int byte_stuff(char *data, int size);
 int byte_destuff(char *data, int size);

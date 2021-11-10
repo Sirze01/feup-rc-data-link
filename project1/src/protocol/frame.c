@@ -3,18 +3,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-inline char BCC1(char A, char C) {
-    return A ^ C;
-}
-
-inline char BBC2(char *data, int size) {
+inline char byte_xor(char *data, int size) {
     if (size < 2)
         return 0;
-    char bcc = data[0];
+    char mxor = data[0];
     for (int i = 1; i < size; i++) {
-        bcc ^= data[i];
+        mxor ^= data[i];
     }
-    return bcc;
+    return mxor;
 }
 
 int byte_stuff(char *data, int size) {
