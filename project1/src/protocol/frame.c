@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-inline char byte_xor(char *data, int size) {
+static inline char byte_xor(char *data, int size) {
     if (size < 2)
         return 0;
     char mxor = data[0];
@@ -68,38 +68,34 @@ int destuff_bytes(char *data, int size) {
     return new_size;
 }
 
-SUFrame assemble_suframe(DeviceRole role, char ctr) {
-    SUFrame frame;
+void assemble_suframe(char *out_frame, DeviceRole role, char ctr) {
 
-    frame.frame[0] = F_FLAG;
-    frame.frame[1] = role == TRANSMITTER ? F_ADDRESS_TRANSMITTER_COMMANDS
-                                         : F_ADDRESS_RECEIVER_COMMANDS;
-    frame.frame[2] = ctr;
+    out_frame[0] = F_FLAG;
+    out_frame[1] = role == TRANSMITTER ? F_ADDRESS_TRANSMITTER_COMMANDS
+                                       : F_ADDRESS_RECEIVER_COMMANDS;
+    out_frame[2] = ctr;
 
-    char fields[] = {frame.frame[1], frame.frame[2]};
-    frame.frame[3] = byte_xor(fields, sizeof fields);
+    char fields[] = {out_frame[1], out_frame[2]};
+    out_frame[3] = byte_xor(fields, sizeof fields);
 
-    frame.frame[4] = F_FLAG;
-
-    return frame;
+    out_frame[4] = F_FLAG;
 }
 
-IFrame assemble_iframe(DeviceRole role, char ctr, int size, char *data) {
-    IFrame frame;
+void assemble_iframe(char *out_frame, DeviceRole role, char ctr,
+                     int unstuffed_data_size, char *unstuffed_data) {
+    out_frame[0] = F_FLAG;
+    out_frame[1] = role == TRANSMITTER ? F_ADDRESS_TRANSMITTER_COMMANDS
+                                       : F_ADDRESS_RECEIVER_COMMANDS;
+    out_frame[2] = ctr;
 
-    frame.frame[0] = F_FLAG;
-    frame.frame[1] = role == TRANSMITTER ? F_ADDRESS_TRANSMITTER_COMMANDS
-                                         : F_ADDRESS_RECEIVER_COMMANDS;
-    frame.frame[2] = ctr;
+    char fields[] = {out_frame[1], out_frame[2]};
+    out_frame[3] = byte_xor(fields, sizeof fields);
 
-    char fields[] = {frame.frame[1], frame.frame[2]};
-    frame.frame[3] = byte_xor(fields, sizeof fields);
+    char bcc = byte_xor(unstuffed_data, unstuffed_data_size);
 
-    frame.data_size = size;
-    memcpy(frame.frame + 4, data, frame.data_size);
+    memcpy(out_frame + 4, unstuffed_data, unstuffed_data_size);
+    int stuffed_data_size = stuff_bytes(out_frame + 4, unstuffed_data_size);
 
-    frame.frame[4 + frame.data_size] = byte_xor(data, frame.data_size);
-    frame.frame[5 + frame.data_size] = F_FLAG;
-
-    return frame;
+    out_frame[4 + stuffed_data_size] = bcc;
+    out_frame[5 + stuffed_data_size] = F_FLAG;
 }

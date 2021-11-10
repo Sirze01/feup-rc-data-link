@@ -1,6 +1,7 @@
 #pragma once
 
 #include <linux/limits.h>
+#include <stdbool.h>
 
 /* COMMON TO BOTH FRAMES */
 #define F_FLAG 0x07e
@@ -24,18 +25,12 @@
 
 typedef enum DeviceRole { TRANSMITTER, RECEIVER } DeviceRole;
 
-typedef struct SUFrame {
-    char frame[SUF_FRAME_SIZE];
-} SUFrame;
-
-typedef struct IFrame {
-    int data_size;
-    char frame[IF_FRAME_SIZE];
-} IFrame;
-
-char byte_xor(char *data, int size);
 int stuff_bytes(char *data, int size);
 int destuff_bytes(char *data, int size);
 
-SUFrame assemble_suframe(DeviceRole role, char ctr);
-IFrame assemble_iframe(DeviceRole role, char ctr, int size, char *data);
+void assemble_suframe(char *out_frame, DeviceRole role, char ctr);
+void assemble_iframe(char *out_frame, DeviceRole role, char ctr,
+                     int unstuffed_data_size, char *unstuffed_data);
+
+char get_ctr_suframe(char *frame);
+void get_data_iframe(char *out_data, char *frame);
