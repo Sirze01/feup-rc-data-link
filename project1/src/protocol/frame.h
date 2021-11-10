@@ -18,6 +18,25 @@
 #define F_FLAG 0x07e
 #define F_ESCAPE_CHAR 0x7d
 
+typedef struct SUFrame {
+    char flg;
+    char addr;
+    char ctr;
+    char bcc1;
+} SUFrame;
+
+typedef struct IFrame {
+    char flg;
+    char addr;
+    char ctr;
+    char bcc1;
+    char bcc2;
+    int data_size;
+    char *data;
+} IFrame;
+
 char byte_xor(char *data, int size);
 int byte_stuff(char *data, int size);
 int byte_destuff(char *data, int size);
+SUFrame assemble_suframe(DeviceRole role, char ctr);
+IFrame assemble_iframe(DeviceRole role, char ctr, int size);
