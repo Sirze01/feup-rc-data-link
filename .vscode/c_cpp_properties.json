@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "name": "myConfigurationName",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/make",
+            "cStandard": "c11"
+        }
+    ],
+    "version": 4
+}
