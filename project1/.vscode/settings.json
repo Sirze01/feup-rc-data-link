@@ -4,7 +4,10 @@
     "editor.tabSize": 4,
     "editor.wordWrap": "bounded",
     "editor.wordWrapColumn": 150,
-    "files.associations": {},
+    "files.associations": {
+        "stat.h": "c",
+        "string.h": "c"
+    },
     "cpplint.filters": [
         "-whitespace",
         "-legal/copyright",
@@ -20,4 +23,5 @@
     "files.exclude": {
         "**/*.o": true
     },
+    "cpplint.cpplintPath": "/usr/bin/cpplint",
 }
