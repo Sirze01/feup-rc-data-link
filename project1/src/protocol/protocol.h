@@ -1,13 +1,9 @@
 #pragma once
 
+#include "frame.h"
 #include <termios.h>
 
 #define BAUDRATE B38400
-
-typedef enum DeviceRole {
-    TRANSMITTER,
-    RECEIVER
-} DeviceRole;
 
 /**
  * @brief Open a data link on /dev/ttyS<port> with given role.

@@ -13,7 +13,7 @@ inline char byte_xor(char *data, int size) {
     return mxor;
 }
 
-int byte_stuff(char *data, int size) {
+int stuff_bytes(char *data, int size) {
     char *new_data = (char *)malloc(2 * size);
     if (new_data == NULL) {
         perror("Memory allocation for byte stuffying failed");
@@ -36,7 +36,7 @@ int byte_stuff(char *data, int size) {
     return new_size;
 }
 
-int byte_destuff(char *data, int size) {
+int destuff_bytes(char *data, int size) {
     char *new_data = (char *)malloc(size);
     if (new_data == NULL) {
         perror("Memory allocation for byte stuffying failed");
@@ -66,4 +66,76 @@ int byte_destuff(char *data, int size) {
     memcpy(data, new_data, new_size);
     free(new_data);
     return new_size;
+}
+
+SUFrame *assemble_suframe(DeviceRole role, char ctr) {
+    SUFrame *frame = (SUFrame *)malloc(sizeof(struct SUFrame));
+    if (frame == NULL) {
+        perror("Memory allocation for suframe failed");
+        return NULL;
+    }
+
+    frame->flg = F_FLAG;
+    frame->addr = role == TRANSMITTER ? IF_ADDRESS_SENDER_COMMANDS
+                                      : IF_ADDRESS_RECEIVER_COMMANDS;
+    frame->ctr = ctr;
+
+    char fields[] = {frame->addr, frame->ctr};
+    frame->bcc1 = byte_xor(fields, sizeof fields);
+
+    frame->frame = (char *)malloc(SUF_FRAME_SIZE);
+    frame->frame[0] = frame->flg;
+    frame->frame[1] = frame->addr;
+    frame->frame[2] = frame->ctr;
+    frame->frame[3] = frame->bcc1;
+    frame->frame[4] = frame->flg;
+
+    return frame;
+}
+
+IFrame *assemble_iframe(DeviceRole role, char ctr, int size, char *data) {
+    IFrame *frame = (IFrame *)malloc(sizeof(struct IFrame));
+    if (frame == NULL) {
+        perror("Memory allocation for iframe failed");
+        return NULL;
+    }
+
+    frame->flg = F_FLAG;
+    frame->addr = role == TRANSMITTER ? IF_ADDRESS_SENDER_COMMANDS
+                                      : IF_ADDRESS_RECEIVER_COMMANDS;
+    frame->ctr = ctr;
+
+    char fields[] = {frame->addr, frame->ctr};
+    frame->bcc1 = byte_xor(fields, sizeof fields);
+
+    frame->data_size = size;
+    frame->data = data;
+
+    frame->frame =
+        (char *)malloc(IF_FIELDS_SIZE + frame->data_size * sizeof(char));
+    frame->frame[0] = frame->flg;
+    frame->frame[1] = frame->addr;
+    frame->frame[2] = frame->ctr;
+    frame->frame[3] = frame->bcc1;
+
+    for (int framei = 4, datai = 0; datai < frame->data_size;
+         framei++, datai++) {
+        frame->frame[framei] = frame->data[datai];
+    }
+
+    frame->bcc2 = byte_xor(frame->data, frame->data_size);
+    frame->frame[3 + frame->data_size + 1] = frame->bcc2;
+    frame->frame[3 + frame->data_size + 2] = frame->flg;
+
+    return frame;
+}
+
+void free_SUFrame(SUFrame *frame) {
+    free(frame->frame);
+    free(frame);
+}
+
+void free_IFrame(IFrame *frame) {
+    free(frame->frame);
+    free(frame);
 }
