@@ -1,7 +1,7 @@
 {
     "configurations": [
         {
-            "name": "myConfigurationName",
+            "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**"
             ],
