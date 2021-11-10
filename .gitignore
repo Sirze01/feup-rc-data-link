@@ -1,1 +1,3 @@
-*.bin
+**.bin
+**.o
+project1/src/application
