@@ -130,12 +130,12 @@ IFrame *assemble_iframe(DeviceRole role, char ctr, int size, char *data) {
     return frame;
 }
 
-void free_SUFrame(SUFrame *frame) {
+void destroy_SUFrame(SUFrame *frame) {
     free(frame->frame);
     free(frame);
 }
 
-void free_IFrame(IFrame *frame) {
+void destroy_IFrame(IFrame *frame) {
     free(frame->frame);
     free(frame);
 }

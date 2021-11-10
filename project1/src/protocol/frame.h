@@ -44,9 +44,8 @@ typedef struct IFrame {
 char byte_xor(char *data, int size);
 int stuff_bytes(char *data, int size);
 int destuff_bytes(char *data, int size);
+
 SUFrame *assemble_suframe(DeviceRole role, char ctr);
 IFrame *assemble_iframe(DeviceRole role, char ctr, int size, char *data);
-
-void free_SUFrame(SUFrame *frame);
-
-void free_IFrame(IFrame *frame);
+void destroy_SUFrame(SUFrame *frame);
+void destroy_IFrame(IFrame *frame);
