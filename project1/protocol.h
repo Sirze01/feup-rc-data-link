@@ -1,10 +1,38 @@
-#define FLAG 0x07E
+#define TRANSMITTER 0
+#define RECEIVER 1
 
-#define ADDRESS_SENDER_COMMANDS 0x03 
-#define ADDRESS_RECEIVER_COMMANDS 0x01
+/**
+ * @brief Open a data link on /dev/ttyS<port> with given role.
+ * 
+ * @param port of /dev/ttyS<port>
+ * @param role one of TRANSMITTER, RECEIVER
+ * @return opened file descriptor, -1 in case of error
+ */
+int llopen(int port, char role);
 
-#define CONTROL_SET 0x03
-#define CONTROL_DISC 0x0B
-#define CONTROL_UA 0x07
-#define CONTROL_RR 0x05  // Needs bitmask with packet number
-#define CONTROL_REJ 0x01 // Needs bitmask with packet number
+/**
+ * @brief Write packet with given length to a previously opened data link.
+ * 
+ * @param fd data link file descriptor
+ * @param buffer char character array to transmit
+ * @param length buffer length
+ * @return number of written chars, -1 in case of error
+ */
+int llwrite(int fd, char *buffer, int length);
+
+/**
+ * @brief Read packet from a previously opened data link to buffer.
+ * 
+ * @param fd data link file descriptor
+ * @param buffer 
+ * @return number of read chars, -1 in case of error
+ */
+int llread(int fd, char *buffer);
+
+/**
+ * @brief Close a previously opened data link.
+ * 
+ * @param fd data link file descriptor
+ * @return positive value in case of success, negative otherwise 
+ */
+int llclose(int fd);
