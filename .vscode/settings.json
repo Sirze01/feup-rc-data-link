@@ -17,4 +17,7 @@
     "cpplint.languages": [
         "c"
     ],
+    "files.exclude": {
+        "**.o": true
+    },
 }
