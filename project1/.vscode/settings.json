@@ -10,7 +10,8 @@
         "limits.h": "c",
         "strings.h": "c",
         "termios.h": "c",
-        "features.h": "c"
+        "features.h": "c",
+        "frame.h": "c"
     },
     "cpplint.filters": [
         "-whitespace",

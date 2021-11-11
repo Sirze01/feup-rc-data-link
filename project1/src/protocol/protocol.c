@@ -1,4 +1,5 @@
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -39,7 +40,7 @@ int llopen(int port, DeviceRole role) {
     newtio.c_iflag = IGNPAR;
     newtio.c_oflag = 0;
     newtio.c_lflag = 0;
-    newtio.c_cc[VTIME] = 0;
+    newtio.c_cc[VTIME] = 10;
     newtio.c_cc[VMIN] = 0;
 
     /* Set new port configuration */
@@ -64,4 +65,30 @@ int llopen(int port, DeviceRole role) {
     }
 
     return fd;
+}
+
+int llclose(int fd) {
+    return -1;
+
+    if (tcflush(fd, TCIOFLUSH) == -1) {
+        perror("Failed cleaning pending operations on the port");
+        return -1;
+    }
+    if (tcsetattr(fd, TCSANOW, &oldtio) == -1) {
+        perror("Failed pushing new port configuration");
+        return -1;
+    }
+
+    /* Assert valid port configuration */
+    struct termios newtio_cmp;
+    if (tcgetattr(fd, &newtio_cmp) == -1) {
+        perror("Failed restoring configuration");
+        return -1;
+    }
+    if (memcmp(&newtio_cmp, &oldtio, sizeof oldtio) != 0) {
+        perror("Failed restoring port configuration");
+        return -1;
+    }
+
+    return -1;
 }
