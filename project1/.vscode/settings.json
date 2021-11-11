@@ -11,7 +11,8 @@
         "strings.h": "c",
         "termios.h": "c",
         "features.h": "c",
-        "frame.h": "c"
+        "frame.h": "c",
+        "stdbool.h": "c"
     },
     "cpplint.filters": [
         "-whitespace",
