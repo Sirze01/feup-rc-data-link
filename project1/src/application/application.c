@@ -11,11 +11,15 @@ static void print_bytes(char *buf, int size) {
 }
 
 int main() {
-    char mbytes[6] = {0x7d, 0x7e, 0x03, 0x0, 0x0, 0x0};
+    char mbytes[6] = {0x7a, 0x7e, 0x03, 0x0, 0x0, 0x0};
     int size = 3;
     print_bytes(mbytes, size);
-    size = stuff_bytes(mbytes, size);
-    print_bytes(mbytes, size);
-    size = destuff_bytes(mbytes, size);
-    print_bytes(mbytes, size);
+    char out_frame[200];
+
+    int out_frame_size =
+        assemble_iframe(out_frame, TRANSMITTER, IF_CONTROL(1), size, mbytes);
+    print_bytes(out_frame, out_frame_size);
+
+    destuff_bytes(4 + out_frame, out_frame_size - 6);
+    print_bytes(4 + out_frame, 3);
 }

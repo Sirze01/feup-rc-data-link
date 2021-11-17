@@ -4,14 +4,25 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "protocol.h"
+#include "data_link_layer.h"
 
-static struct termios oldtio;
+#define MAX_FRAME_SIZE 8096
 
-int llopen(int port, DeviceRole role) {
+static struct {
+    char port[20];
+    int baud_rate;
+    unsigned int sequence_number;
+    unsigned int timeout;
+    unsigned int no_retransmissions;
+    struct termios oldtio;
+} config;
+
+static char out_frame[MAX_FRAME_SIZE];
+static char aux_frame[MAX_FRAME_SIZE];
+
+int llopen(int port, device_role role) {
     /* Assemble device file path */
-    char port_path[PATH_MAX];
-    int c = snprintf(port_path, PATH_MAX, "/dev/ttyS%d", port);
+    int c = snprintf(config.port, sizeof config.port, "/dev/ttyS%d", port);
     if (c < 0) {
         fprintf(stderr, "Output error parsing port path\n");
         return -1;
@@ -21,14 +32,14 @@ int llopen(int port, DeviceRole role) {
     }
 
     /* Open port */
-    int fd = open(port_path, O_RDWR | O_NOCTTY);
+    int fd = open(config.port, O_RDWR | O_NOCTTY);
     if (fd == -1) {
         perror("Error opening port");
         return -1;
     }
 
     /* Save current port configuration for later restoration */
-    if (tcgetattr(fd, &oldtio) == -1) {
+    if (tcgetattr(fd, &config.oldtio) == -1) {
         perror("Failed reading port configuration");
         return -1;
     }
@@ -74,7 +85,7 @@ int llclose(int fd) {
         perror("Failed cleaning pending operations on the port");
         return -1;
     }
-    if (tcsetattr(fd, TCSANOW, &oldtio) == -1) {
+    if (tcsetattr(fd, TCSANOW, &config.oldtio) == -1) {
         perror("Failed pushing new port configuration");
         return -1;
     }
@@ -85,7 +96,7 @@ int llclose(int fd) {
         perror("Failed restoring configuration");
         return -1;
     }
-    if (memcmp(&newtio_cmp, &oldtio, sizeof oldtio) != 0) {
+    if (memcmp(&newtio_cmp, &config.oldtio, sizeof config.oldtio) != 0) {
         perror("Failed restoring port configuration");
         return -1;
     }
