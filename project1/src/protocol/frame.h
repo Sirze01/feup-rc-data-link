@@ -25,12 +25,12 @@
 
 typedef enum device_role { TRANSMITTER, RECEIVER } device_role;
 
-int stuff_bytes(char *data, char *aux_data, int size);
-int destuff_bytes(char *data, char *aux_data, int size);
+int stuff_bytes(char *data, char *aux_data, int data_size);
+int destuff_bytes(char *data, char *aux_data, int data_size);
 
 void assemble_suframe(char *out_frame, device_role role, char ctr);
 int assemble_iframe(char *out_frame, char *aux_frame, device_role role,
-                    char ctr, int unstuffed_data_size, char *unstuffed_data);
+                    char ctr, char *unstuffed_data, int unstuffed_data_size);
 
 char get_ctr_suframe(char *frame);
 void get_data_iframe(char *out_data, char *frame);

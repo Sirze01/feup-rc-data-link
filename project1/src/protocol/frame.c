@@ -13,9 +13,9 @@ static inline char byte_xor(char *data, int size) {
     return mxor;
 }
 
-int stuff_bytes(char *data, char *aux_data, int size) {
+int stuff_bytes(char *data, char *aux_data, int data_size) {
     int new_size = 0;
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < data_size; i++) {
         if (data[i] == F_FLAG) {
             aux_data[new_size++] = F_ESCAPE_CHAR;
             aux_data[new_size++] = 0x5e;
@@ -30,11 +30,11 @@ int stuff_bytes(char *data, char *aux_data, int size) {
     return new_size;
 }
 
-int destuff_bytes(char *data, char *aux_data, int size) {
+int destuff_bytes(char *data, char *aux_data, int data_size) {
     int new_size = 0;
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < data_size; i++) {
         if (data[i] == F_ESCAPE_CHAR) {
-            if (i == size - 1) {
+            if (i == data_size - 1) {
                 perror("Stuffed data is corrupted");
                 return -1;
             }
@@ -70,7 +70,7 @@ void assemble_suframe(char *out_frame, device_role role, char ctr) {
 }
 
 int assemble_iframe(char *out_frame, char *aux_frame, device_role role,
-                    char ctr, int unstuffed_data_size, char *unstuffed_data) {
+                    char ctr, char *unstuffed_data, int unstuffed_data_size) {
     out_frame[0] = F_FLAG;
     out_frame[1] = role == TRANSMITTER ? F_ADDRESS_TRANSMITTER_COMMANDS
                                        : F_ADDRESS_RECEIVER_COMMANDS;
