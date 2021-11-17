@@ -8,6 +8,62 @@
 
 static struct termios oldtio;
 
+int send_set(int fd, DeviceRole role) {
+    volatile bool ack = false;
+    if (role == TRANSMITTER) {
+        while (!ack) {
+            char set_frame[5];
+            // char ack_frame[5];
+            char curr_byte;
+            assemble_suframe(set_frame, TRANSMITTER, SUF_CONTROL_SET);
+            write(fd, set_frame, sizeof set_frame);
+            bool valid = true;
+            int bytes_read;
+            for (int i = 0; valid; i++) {
+                if ((bytes_read = read(fd, &curr_byte, 1)) < 0) {
+                    printf("failed read");
+                    break;
+                }
+
+                switch (i) {
+                    case 0:
+                        if (curr_byte != F_FLAG) {
+                            valid = false;
+                            break;
+                        } else {
+                            // ack_frame[i] = curr_byte;
+                        }
+                        break;
+                    case 1:
+                        if (curr_byte != F_ADDRESS_TRANSMITTER_COMMANDS) {
+                            valid = false;
+                            break;
+                        } else {
+                            // ack_frame[i] = curr_byte;
+                        }
+                        break;
+                    case 2:
+                        if (curr_byte != SUF_CONTROL_UA) {
+                            valid = false;
+                            break;
+                        } else {
+                            // ack_frame[i] = curr_byte;
+                        }
+                    case 3:
+                        if (curr_byte != SUF_CONTROL_UA) {
+                            valid = false;
+                            break;
+                        } else {
+                            // ack_frame[i] = curr_byte;
+                        }
+                }
+            }
+        }
+    } else {
+    }
+    return 1;
+}
+
 int llopen(int port, DeviceRole role) {
     /* Assemble device file path */
     char port_path[PATH_MAX];
