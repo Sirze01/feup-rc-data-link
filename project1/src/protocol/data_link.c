@@ -4,9 +4,11 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "data_link_layer.h"
+#include "data_link.h"
+#include "frame.h"
 
 #define MAX_FRAME_SIZE 8096
+#define BAUDRATE B38400
 
 static struct {
     char port[20];

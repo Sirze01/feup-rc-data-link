@@ -23,14 +23,12 @@
 #define IF_FRAME_SIZE PATH_MAX
 #define IF_CONTROL(no_seq) (no_seq << 6)
 
-typedef enum device_role { TRANSMITTER, RECEIVER } device_role;
-
 int stuff_bytes(char *data, char *aux_data, int data_size);
 int destuff_bytes(char *data, char *aux_data, int data_size);
 
-void assemble_suframe(char *out_frame, device_role role, char ctr);
-int assemble_iframe(char *out_frame, char *aux_frame, device_role role,
-                    char ctr, char *unstuffed_data, int unstuffed_data_size);
+void assemble_suframe(char *out_frame, int role, char ctr);
+int assemble_iframe(char *out_frame, char *aux_frame, int role, char ctr,
+                    char *unstuffed_data, int unstuffed_data_size);
 
 char get_ctr_suframe(char *frame);
 void get_data_iframe(char *out_data, char *frame);
