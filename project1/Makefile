@@ -1,5 +1,5 @@
 CC = gcc 
-CFLAGS = -Wall -Werror
+CFLAGS = -Wall
 PROG_NAME = application
 
 SRCDIR = src
