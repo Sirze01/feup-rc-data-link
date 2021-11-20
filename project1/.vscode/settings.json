@@ -12,7 +12,9 @@
         "termios.h": "c",
         "features.h": "c",
         "frame.h": "c",
-        "stdbool.h": "c"
+        "stdbool.h": "c",
+        "fstream": "c",
+        "sstream": "c"
     },
     "cpplint.filters": [
         "-whitespace",

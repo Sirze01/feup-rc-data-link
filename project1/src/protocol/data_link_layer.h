@@ -12,7 +12,7 @@
  * @param role one of TRANSMITTER, RECEIVER
  * @return opened file descriptor, -1 in case of error
  */
-int llopen(int port, DeviceRole role);
+int llopen(int port, device_role role);
 
 /**
  * @brief Write packet with given length to a previously opened data link.
