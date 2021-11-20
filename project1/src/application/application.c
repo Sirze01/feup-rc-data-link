@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "../protocol/data_link.h"
@@ -75,30 +76,8 @@ void assert_valid_options() {
     }
 }
 
-void send_file() {
-    /* Open file for reading */
-    int fd = open(file_path, O_RDONLY);
-    if (fd == -1) {
-        perror("Open file");
-        exit(-1);
-    }
-
-    /* Send start packet */
-    return;
-}
-
-void receive_file() {
-}
-
 int main(int argc, char **argv) {
-    unsigned char data[100];
-    int data_size = 3;
-    unsigned char out_packet[4000];
-    bzero(out_packet, 4000);
-    memset(data, 2, 100);
 
-    assemble_data_packet(2, out_packet, data, 100);
-    print_bytes(out_packet, 20);
     return 0;
     /******************/
 
@@ -107,10 +86,10 @@ int main(int argc, char **argv) {
 
     switch (role) {
         case TRANSMITTER:
-            send_file();
+            return 0;
             break;
         case RECEIVER:
-            receive_file();
+            return 0;
             break;
     }
 
