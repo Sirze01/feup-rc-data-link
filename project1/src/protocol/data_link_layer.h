@@ -5,7 +5,7 @@
 
 #define BAUDRATE B38400
 
-#define CONNECTION_TIMEOUT 60
+#define CONNECTION_TIMEOUT 10
 
 /**
  * @brief Open a data link on /dev/ttyS<port> with given role.

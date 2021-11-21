@@ -8,6 +8,8 @@
 
 static struct termios oldtio;
 
+device_role connection_role;
+
 static int port_cleanup(int fd) {
     if (tcflush(fd, TCIOFLUSH) == -1) {
         return -1;
@@ -50,18 +52,19 @@ static int port_setup(int fd) {
 }
 
 static int connection_setup(int fd, device_role role) {
+    connection_role = role;
     char curr_byte;
     bool valid = true;
     bool complete = false;
     char out_frame[5];
     char in_frame[3];
 
-    if (role == TRANSMITTER) {
+    if (connection_role == TRANSMITTER) {
 
         assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_SET);
         write(fd, out_frame, sizeof out_frame);
 
-        for (int i = 0; valid && !complete; i++) {
+        for (int i = 0; valid && i <= 4; i++) {
             if (read(fd, &curr_byte, 1) < 0) {
                 break;
             }
@@ -94,6 +97,11 @@ static int connection_setup(int fd, device_role role) {
                         complete = true;
                     }
                     break;
+                case 4:
+                    if (curr_byte != F_FLAG) {
+                        valid = false;
+                    }
+                    break;
             }
         }
 
@@ -102,7 +110,7 @@ static int connection_setup(int fd, device_role role) {
         }
 
     } else {
-        for (int i = 0; valid && !complete; i++) {
+        for (int i = 0; valid && i <= 4; i++) {
             if (read(fd, &curr_byte, 1) < 0) {
                 break;
             }
@@ -126,12 +134,18 @@ static int connection_setup(int fd, device_role role) {
                     } else {
                         in_frame[i - 1] = curr_byte;
                     }
+                    break;
                 case 3:
                     in_frame[i - 1] = curr_byte;
                     if (byte_xor(in_frame, sizeof in_frame) != 0) {
                         valid = false;
                     } else {
                         complete = true;
+                    }
+                    break;
+                case 4:
+                    if (curr_byte != F_FLAG) {
+                        valid = false;
                     }
                     break;
                 default:
@@ -145,6 +159,167 @@ static int connection_setup(int fd, device_role role) {
 
         assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_UA);
         write(fd, out_frame, sizeof out_frame);
+    }
+    return fd;
+}
+
+static int connection_disconnect(int fd) {
+    char curr_byte;
+    bool valid = true;
+    bool complete = false;
+    char out_frame[5];
+    char in_frame[3];
+
+    if (connection_role == TRANSMITTER) {
+        assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_DISC);
+        write(fd, out_frame, sizeof out_frame);
+        for (int i = 0; valid && i <= 4; i++) {
+            if (read(fd, &curr_byte, 1) < 0) {
+                break;
+            }
+
+            switch (i) {
+                case 0:
+                    if (curr_byte != F_FLAG) {
+                        valid = false;
+                    }
+                    break;
+                case 1:
+                    if (curr_byte != F_ADDRESS_TRANSMITTER_COMMANDS) {
+                        valid = false;
+                    } else {
+                        in_frame[i - 1] = curr_byte;
+                    }
+                    break;
+                case 2:
+                    if (curr_byte != SUF_CONTROL_DISC) {
+                        valid = false;
+                    } else {
+                        in_frame[i - 1] = curr_byte;
+                    }
+                    break;
+                case 3:
+                    in_frame[i - 1] = curr_byte;
+                    if (byte_xor(in_frame, sizeof in_frame) != 0) {
+                        valid = false;
+                    } else {
+                        complete = true;
+                    }
+                    break;
+                case 4:
+                    if (curr_byte != F_FLAG) {
+                        valid = false;
+                    }
+                    break;
+            }
+        }
+
+        if (!complete) {
+            return -1;
+        }
+
+        assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_UA);
+        write(fd, out_frame, sizeof out_frame);
+
+    } else {
+        for (int i = 0; valid && i <= 4; i++) {
+            if (read(fd, &curr_byte, 1) < 0) {
+                break;
+            }
+
+            switch (i) {
+                case 0:
+                    if (curr_byte != F_FLAG) {
+                        valid = false;
+                    }
+                    break;
+                case 1:
+                    if (curr_byte != F_ADDRESS_TRANSMITTER_COMMANDS) {
+                        valid = false;
+                    } else {
+                        in_frame[i - 1] = curr_byte;
+                    }
+                    break;
+                case 2:
+                    if (curr_byte != SUF_CONTROL_DISC) {
+                        valid = false;
+                    } else {
+                        in_frame[i - 1] = curr_byte;
+                    }
+                    break;
+                case 3:
+                    in_frame[i - 1] = curr_byte;
+                    if (byte_xor(in_frame, sizeof in_frame) != 0) {
+                        valid = false;
+                    } else {
+                        complete = true;
+                    }
+                    break;
+                case 4:
+                    if (curr_byte != F_FLAG) {
+                        valid = false;
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        if (!complete) {
+            return -1;
+        }
+
+        assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_DISC);
+        write(fd, out_frame, sizeof out_frame);
+
+        complete = false;
+
+        for (int i = 0; valid && i <= 4; i++) {
+            if (read(fd, &curr_byte, 1) < 0) {
+                break;
+            }
+
+            switch (i) {
+                case 0:
+                    if (curr_byte != F_FLAG) {
+                        valid = false;
+                    }
+                    break;
+                case 1:
+                    if (curr_byte != F_ADDRESS_TRANSMITTER_COMMANDS) {
+                        valid = false;
+                    } else {
+                        in_frame[i - 1] = curr_byte;
+                    }
+                    break;
+                case 2:
+                    if (curr_byte != SUF_CONTROL_UA) {
+                        valid = false;
+                    } else {
+                        in_frame[i - 1] = curr_byte;
+                    }
+                    break;
+                case 3:
+                    in_frame[i - 1] = curr_byte;
+                    if (byte_xor(in_frame, sizeof in_frame) != 0) {
+                        valid = false;
+                    } else {
+                        complete = true;
+                    }
+                    break;
+                case 4:
+                    if (curr_byte != F_FLAG) {
+                        valid = false;
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        if (!complete) {
+            return -1;
+        }
     }
     return fd;
 }
@@ -183,6 +358,10 @@ int llopen(int port, device_role role) {
 }
 
 int llclose(int fd) {
+
+    if (connection_disconnect(fd) < 0) {
+        return -1;
+    }
 
     if (port_cleanup(fd) < 0)
         return -1;

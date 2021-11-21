@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "../protocol/data_link_layer.h"
 #include "../protocol/frame.h"
@@ -37,6 +38,7 @@ int main(int argc, char *argv[]) {
 
     if (llclose(fd) < 0) {
         fprintf(stdout, "Fail closing\n");
+        return -1;
     }
 
     fprintf(stdout, "Disconnected\n");
