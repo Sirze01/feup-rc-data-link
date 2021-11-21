@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static inline char byte_xor(char *data, int size) {
+char byte_xor(char *data, int size) {
     if (size < 2)
         return 0;
     char mxor = data[0];

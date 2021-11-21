@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 /* COMMON TO BOTH FRAMES */
-#define F_FLAG 0x07e
+#define F_FLAG 0x7e
 #define F_ESCAPE_CHAR 0x7d
 #define F_ADDRESS_TRANSMITTER_COMMANDS 0x03
 #define F_ADDRESS_RECEIVER_COMMANDS 0x01
@@ -24,6 +24,8 @@
 #define IF_CONTROL(no_seq) (no_seq << 6)
 
 typedef enum device_role { TRANSMITTER, RECEIVER } device_role;
+
+char byte_xor(char *data, int size);
 
 int stuff_bytes(char *data, char *aux_data, int data_size);
 int destuff_bytes(char *data, char *aux_data, int data_size);

@@ -8,63 +8,148 @@
 
 static struct termios oldtio;
 
-int send_set(int fd, DeviceRole role) {
-    volatile bool ack = false;
-    if (role == TRANSMITTER) {
-        while (!ack) {
-            char set_frame[5];
-            // char ack_frame[5];
-            char curr_byte;
-            assemble_suframe(set_frame, TRANSMITTER, SUF_CONTROL_SET);
-            write(fd, set_frame, sizeof set_frame);
-            bool valid = true;
-            int bytes_read;
-            for (int i = 0; valid; i++) {
-                if ((bytes_read = read(fd, &curr_byte, 1)) < 0) {
-                    printf("failed read");
-                    break;
-                }
-
-                switch (i) {
-                    case 0:
-                        if (curr_byte != F_FLAG) {
-                            valid = false;
-                            break;
-                        } else {
-                            // ack_frame[i] = curr_byte;
-                        }
-                        break;
-                    case 1:
-                        if (curr_byte != F_ADDRESS_TRANSMITTER_COMMANDS) {
-                            valid = false;
-                            break;
-                        } else {
-                            // ack_frame[i] = curr_byte;
-                        }
-                        break;
-                    case 2:
-                        if (curr_byte != SUF_CONTROL_UA) {
-                            valid = false;
-                            break;
-                        } else {
-                            // ack_frame[i] = curr_byte;
-                        }
-                    case 3:
-                        if (curr_byte != SUF_CONTROL_UA) {
-                            valid = false;
-                            break;
-                        } else {
-                            // ack_frame[i] = curr_byte;
-                        }
-                }
-            }
-        }
-    } else {
+static int port_cleanup(int fd) {
+    if (tcflush(fd, TCIOFLUSH) == -1) {
+        return -1;
     }
-    return 1;
+    if (tcsetattr(fd, TCSANOW, &oldtio) == -1) {
+        return -1;
+    }
+
+    if (close(fd) < 0)
+        return -1;
+
+    return 0;
 }
 
-int llopen(int port, DeviceRole role) {
+static int port_setup(int fd) {
+    /* Save current port configuration for later restoration */
+    if (tcgetattr(fd, &oldtio) == -1) {
+        return -1;
+    }
+
+    /* Assemble new port configuration */
+    struct termios newtio;
+    bzero(&newtio, sizeof newtio);
+    newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
+    newtio.c_iflag = IGNPAR;
+    newtio.c_oflag = 0;
+    newtio.c_lflag = 0;
+    newtio.c_cc[VTIME] = CONNECTION_TIMEOUT;
+    newtio.c_cc[VMIN] = 0;
+
+    /* Set new port configuration */
+    if (tcflush(fd, TCIOFLUSH) == -1) {
+        return -1;
+    }
+    if (tcsetattr(fd, TCSANOW, &newtio) == -1) {
+        return -1;
+    }
+
+    return fd;
+}
+
+static int connection_setup(int fd, device_role role) {
+    char curr_byte;
+    bool valid = true;
+    bool complete = false;
+    char out_frame[5];
+    char in_frame[3];
+
+    if (role == TRANSMITTER) {
+
+        assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_SET);
+        write(fd, out_frame, sizeof out_frame);
+
+        for (int i = 0; valid && !complete; i++) {
+            if (read(fd, &curr_byte, 1) < 0) {
+                break;
+            }
+
+            switch (i) {
+                case 0:
+                    if (curr_byte != F_FLAG) {
+                        valid = false;
+                    }
+                    break;
+                case 1:
+                    if (curr_byte != F_ADDRESS_TRANSMITTER_COMMANDS) {
+                        valid = false;
+                    } else {
+                        in_frame[i - 1] = curr_byte;
+                    }
+                    break;
+                case 2:
+                    if (curr_byte != SUF_CONTROL_UA) {
+                        valid = false;
+                    } else {
+                        in_frame[i - 1] = curr_byte;
+                    }
+                    break;
+                case 3:
+                    in_frame[i - 1] = curr_byte;
+                    if (byte_xor(in_frame, sizeof in_frame) != 0) {
+                        valid = false;
+                    } else {
+                        complete = true;
+                    }
+                    break;
+            }
+        }
+
+        if (!complete) {
+            return -1;
+        }
+
+    } else {
+        for (int i = 0; valid && !complete; i++) {
+            if (read(fd, &curr_byte, 1) < 0) {
+                break;
+            }
+
+            switch (i) {
+                case 0:
+                    if (curr_byte != F_FLAG) {
+                        valid = false;
+                    }
+                    break;
+                case 1:
+                    if (curr_byte != F_ADDRESS_TRANSMITTER_COMMANDS) {
+                        valid = false;
+                    } else {
+                        in_frame[i - 1] = curr_byte;
+                    }
+                    break;
+                case 2:
+                    if (curr_byte != SUF_CONTROL_SET) {
+                        valid = false;
+                    } else {
+                        in_frame[i - 1] = curr_byte;
+                    }
+                case 3:
+                    in_frame[i - 1] = curr_byte;
+                    if (byte_xor(in_frame, sizeof in_frame) != 0) {
+                        valid = false;
+                    } else {
+                        complete = true;
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        if (!complete) {
+            return -1;
+        }
+
+        assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_UA);
+        write(fd, out_frame, sizeof out_frame);
+    }
+    return fd;
+}
+
+int llopen(int port, device_role role) {
     /* Assemble device file path */
     char port_path[PATH_MAX];
     int c = snprintf(port_path, PATH_MAX, "/dev/ttyS%d", port);
@@ -83,40 +168,14 @@ int llopen(int port, DeviceRole role) {
         return -1;
     }
 
-    /* Save current port configuration for later restoration */
-    if (tcgetattr(fd, &oldtio) == -1) {
-        perror("Failed reading port configuration");
+    if (port_setup(fd) < 0) {
+        fprintf(stderr, "Failed configuring port\n");
         return -1;
     }
 
-    /* Assemble new port configuration */
-    struct termios newtio;
-    bzero(&newtio, sizeof newtio);
-    newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
-    newtio.c_iflag = IGNPAR;
-    newtio.c_oflag = 0;
-    newtio.c_lflag = 0;
-    newtio.c_cc[VTIME] = 10;
-    newtio.c_cc[VMIN] = 0;
-
-    /* Set new port configuration */
-    if (tcflush(fd, TCIOFLUSH) == -1) {
-        perror("Failed cleaning pending operations on the port");
-        return -1;
-    }
-    if (tcsetattr(fd, TCSANOW, &newtio) == -1) {
-        perror("Failed pushing new port configuration");
-        return -1;
-    }
-
-    /* Assert valid port configuration */
-    struct termios newtio_cmp;
-    if (tcgetattr(fd, &newtio_cmp) == -1) {
-        perror("Failed reading port configuration");
-        return -1;
-    }
-    if (memcmp(&newtio_cmp, &newtio, sizeof newtio) != 0) {
-        perror("Failed pushing new port configuration");
+    if (connection_setup(fd, role) < 0) {
+        fprintf(stderr, "Failed establishing connection\n");
+        port_cleanup(fd);
         return -1;
     }
 
@@ -124,27 +183,9 @@ int llopen(int port, DeviceRole role) {
 }
 
 int llclose(int fd) {
-    return -1;
 
-    if (tcflush(fd, TCIOFLUSH) == -1) {
-        perror("Failed cleaning pending operations on the port");
+    if (port_cleanup(fd) < 0)
         return -1;
-    }
-    if (tcsetattr(fd, TCSANOW, &oldtio) == -1) {
-        perror("Failed pushing new port configuration");
-        return -1;
-    }
 
-    /* Assert valid port configuration */
-    struct termios newtio_cmp;
-    if (tcgetattr(fd, &newtio_cmp) == -1) {
-        perror("Failed restoring configuration");
-        return -1;
-    }
-    if (memcmp(&newtio_cmp, &oldtio, sizeof oldtio) != 0) {
-        perror("Failed restoring port configuration");
-        return -1;
-    }
-
-    return -1;
+    return 0;
 }
