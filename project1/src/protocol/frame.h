@@ -20,7 +20,8 @@
 
 /* INFORMATION FRAME */
 /* F A C BCC1 Data BCC2 F */
-#define IF_FRAME_SIZE 8096
+#define IF_FRAME_SIZE 8192
+#define IF_MAX_DATA_SIZE 4093
 #define IF_CONTROL(no_seq) (no_seq << 6)
 
 typedef enum device_role { TRANSMITTER, RECEIVER } device_role;
@@ -33,6 +34,3 @@ int destuff_bytes(char *data, char *aux_data, int data_size);
 void assemble_suframe(char *out_frame, device_role role, char ctr);
 int assemble_iframe(char *out_frame, char *aux_frame, device_role role,
                     char ctr, char *unstuffed_data, int unstuffed_data_size);
-
-char get_ctr_suframe(char *frame);
-void get_data_iframe(char *out_data, char *frame);

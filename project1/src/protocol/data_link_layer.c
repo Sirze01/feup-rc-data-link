@@ -2,17 +2,20 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
 
 #include "data_link_layer.h"
 
+#define DEFAULT_DELAY_US 20000
+#define BAUDRATE B38400
+#define CONNECTION_TIMEOUT 30
+#define CONNECTION_MAX_RET 3
+
 static struct termios oldtio;
-
 device_role connection_role;
-
 char data_frame[IF_FRAME_SIZE];
 char aux_frame[IF_FRAME_SIZE]; // Ostritch
-
 int curr_fr_no = 0;
 
 static int port_cleanup(int fd) {
@@ -32,10 +35,9 @@ static int port_cleanup(int fd) {
 static int read_SUF(int fd, char addr, char cmd) {
     char curr_byte;
     bool valid = true;
-    bool complete = false;
     char in_frame[3];
 
-    for (int i = 0; valid && i <= 4; i++) {
+    for (int i = 0; valid && i < 5; i++) {
         if (read(fd, &curr_byte, 1) < 0) {
             break;
         }
@@ -50,18 +52,18 @@ static int read_SUF(int fd, char addr, char cmd) {
                 if (curr_byte != addr) {
                     valid = false;
                 } else {
-                    in_frame[i - 1] = curr_byte;
+                    in_frame[0] = curr_byte;
                 }
                 break;
             case 2:
                 if (curr_byte != cmd) {
                     valid = false;
                 } else {
-                    in_frame[i - 1] = curr_byte;
+                    in_frame[1] = curr_byte;
                 }
                 break;
             case 3:
-                in_frame[i - 1] = curr_byte;
+                in_frame[2] = curr_byte;
                 if (byte_xor(in_frame, sizeof in_frame) != 0) {
                     valid = false;
                 }
@@ -70,24 +72,20 @@ static int read_SUF(int fd, char addr, char cmd) {
                 if (curr_byte != F_FLAG) {
                     valid = false;
                 } else {
-                    complete = true;
+                    return 0;
                 }
                 break;
         }
     }
 
-    if (!complete) {
-        return -1;
-    }
-
-    return 0;
+    return -1;
 }
 
 static int read_IF(int fd, char addr, char cmd, char *buffer) {
     char curr_byte;
     bool valid = true;
     bool complete = false;
-    int pkt_length = 0;
+    int frame_length = 0;
 
     for (int i = 0; valid && !complete; i++) {
         if (read(fd, &curr_byte, 1) < 0) {
@@ -125,7 +123,7 @@ static int read_IF(int fd, char addr, char cmd, char *buffer) {
             default:
                 if (curr_byte == F_FLAG) {
                     complete = true;
-                    pkt_length = i + 1;
+                    frame_length = i + 1;
                 }
                 data_frame[i] = curr_byte;
                 break;
@@ -136,16 +134,17 @@ static int read_IF(int fd, char addr, char cmd, char *buffer) {
         return -1;
     }
 
-    if ((pkt_length = destuff_bytes(data_frame, aux_frame, pkt_length)) == -1) {
+    if ((frame_length = destuff_bytes(data_frame, aux_frame, frame_length)) ==
+        -1) {
         return -1;
     }
 
-    if (byte_xor(data_frame + 4, pkt_length - 5) != 0) {
+    if (byte_xor(data_frame + 4, frame_length - 5) != 0) {
         return -1;
     }
 
-    memcpy(buffer, data_frame + 4, pkt_length - 6);
-    return pkt_length - 6;
+    memcpy(buffer, data_frame + 4, frame_length - 6);
+    return frame_length;
 }
 
 static int connection_setup(int fd, device_role role) {
@@ -256,6 +255,7 @@ int llopen(int port, device_role role) {
             success = true;
             break;
         }
+        usleep(DEFAULT_DELAY_US);
     }
 
     if (!success) {
@@ -276,35 +276,48 @@ int llclose(int fd) {
             success = true;
             break;
         }
+        usleep(DEFAULT_DELAY_US);
     }
 
     if (!success) {
         fprintf(stdout,
-                "Connection was inproperly closed, other end may hang\n");
+                "Connection was improperly closed, other end may hang\n");
     }
 
     if (port_cleanup(fd) == -1) {
         return -1;
     }
 
-    return 0;
+    return success ? fd : -1;
 }
 
 int llwrite(int fd, char *buffer, int length) {
-    int new_length = assemble_iframe(data_frame, aux_frame, TRANSMITTER,
-                                     IF_CONTROL(curr_fr_no), buffer, length);
+    if (connection_role == RECEIVER) {
+        fprintf(stderr, "Cannot read while opened as a receiver\n");
+        return -1;
+    }
+
+    if (length > IF_MAX_DATA_SIZE) {
+        fprintf(stderr,
+                "Cannot send packet with length greater than %d bytes\n",
+                IF_MAX_DATA_SIZE);
+        return -1;
+    }
+
+    int frame_length = assemble_iframe(data_frame, aux_frame, TRANSMITTER,
+                                       IF_CONTROL(curr_fr_no), buffer, length);
     int next_fr_no = (curr_fr_no + 1) % 2;
-    int bytes_written;
+    int bytes_written = 0;
 
     for (int tries = 0; tries < CONNECTION_MAX_RET; tries++) {
-        bytes_written = write(fd, data_frame, new_length);
-
-        if (bytes_written == -1) {
+        if ((bytes_written = write(fd, data_frame, frame_length)) == -1) {
+            usleep(DEFAULT_DELAY_US);
             continue;
         }
 
         if (read_SUF(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                      SUF_CONTROL_RR(next_fr_no)) == -1) {
+            usleep(DEFAULT_DELAY_US);
             continue;
         }
 
@@ -316,6 +329,11 @@ int llwrite(int fd, char *buffer, int length) {
 }
 
 int llread(int fd, char *buffer) {
+    if (connection_role == TRANSMITTER) {
+        fprintf(stderr, "Cannot read while opened as a transmitter\n");
+        return -1;
+    }
+
     int bytes_read;
     char rr_frame[5];
     int next_fr_no = (curr_fr_no + 1) % 2;
@@ -323,10 +341,9 @@ int llread(int fd, char *buffer) {
     assemble_suframe(rr_frame, TRANSMITTER, SUF_CONTROL_RR(next_fr_no));
 
     for (int tries = 0; tries < CONNECTION_MAX_RET; tries++) {
-        bytes_read = read_IF(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
-                             IF_CONTROL(curr_fr_no), buffer);
-
-        if (bytes_read == -1) {
+        if ((bytes_read = read_IF(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
+                                  IF_CONTROL(curr_fr_no), buffer)) == -1) {
+            usleep(DEFAULT_DELAY_US);
             continue;
         }
 
@@ -335,5 +352,5 @@ int llread(int fd, char *buffer) {
         break;
     }
 
-    return curr_fr_no == next_fr_no ? bytes_read : -1;
+    return curr_fr_no == next_fr_no ? bytes_read - 6 : -1;
 }
