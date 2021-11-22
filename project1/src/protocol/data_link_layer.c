@@ -13,7 +13,7 @@ device_role connection_role;
 char data_frame[IF_FRAME_SIZE];
 char aux_frame[IF_FRAME_SIZE]; // Ostritch
 
-int fr_no = 0;
+int curr_fr_no = 0;
 
 static int port_cleanup(int fd) {
     if (tcflush(fd, TCIOFLUSH) == -1) {
@@ -27,33 +27,6 @@ static int port_cleanup(int fd) {
         return -1;
 
     return 0;
-}
-
-static int port_setup(int fd) {
-    /* Save current port configuration for later restoration */
-    if (tcgetattr(fd, &oldtio) == -1) {
-        return -1;
-    }
-
-    /* Assemble new port configuration */
-    struct termios newtio;
-    bzero(&newtio, sizeof newtio);
-    newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
-    newtio.c_iflag = IGNPAR;
-    newtio.c_oflag = 0;
-    newtio.c_lflag = 0;
-    newtio.c_cc[VTIME] = CONNECTION_TIMEOUT;
-    newtio.c_cc[VMIN] = 0;
-
-    /* Set new port configuration */
-    if (tcflush(fd, TCIOFLUSH) == -1) {
-        return -1;
-    }
-    if (tcsetattr(fd, TCSANOW, &newtio) == -1) {
-        return -1;
-    }
-
-    return fd;
 }
 
 static int read_SUF(int fd, char addr, char cmd) {
@@ -91,13 +64,13 @@ static int read_SUF(int fd, char addr, char cmd) {
                 in_frame[i - 1] = curr_byte;
                 if (byte_xor(in_frame, sizeof in_frame) != 0) {
                     valid = false;
-                } else {
-                    complete = true;
                 }
                 break;
             case 4:
                 if (curr_byte != F_FLAG) {
                     valid = false;
+                } else {
+                    complete = true;
                 }
                 break;
         }
@@ -252,32 +225,56 @@ int llopen(int port, device_role role) {
         return -1;
     }
 
-    if (port_setup(fd) == -1) {
-        fprintf(stderr, "Failed configuring port\n");
+    /* Save current port configuration for later restoration */
+    if (tcgetattr(fd, &oldtio) == -1) {
         return -1;
     }
 
+    /* Assemble new port configuration */
+    struct termios newtio;
+    bzero(&newtio, sizeof newtio);
+    newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
+    newtio.c_iflag = IGNPAR;
+    newtio.c_oflag = 0;
+    newtio.c_lflag = 0;
+    newtio.c_cc[VTIME] = CONNECTION_TIMEOUT;
+    newtio.c_cc[VMIN] = 0;
+
+    /* Set new port configuration */
+    if (tcflush(fd, TCIOFLUSH) == -1) {
+        return -1;
+    }
+    if (tcsetattr(fd, TCSANOW, &newtio) == -1) {
+        return -1;
+    }
+
+    bool success = false;
     for (int tries = 0; tries < CONNECTION_MAX_RET; tries++) {
         if (connection_setup(fd, role) == -1) {
-            fprintf(stderr, "Failed establishing connection\n");
-            port_cleanup(fd);
-            return -1;
+            continue;
         } else {
+            success = true;
             break;
         }
     }
 
-    return fd;
+    return success ? fd : -1;
 }
 
 int llclose(int fd) {
-
+    bool success = false;
     for (int tries = 0; tries < CONNECTION_MAX_RET; tries++) {
         if (connection_disconnect(fd) == -1) {
-            return -1;
+            continue;
         } else {
+            success = true;
             break;
         }
+    }
+
+    if (!success) {
+        fprintf(stdout,
+                "Connection was inproperly closed, other end may hang\n");
     }
 
     if (port_cleanup(fd) == -1) {
@@ -289,10 +286,10 @@ int llclose(int fd) {
 
 int llwrite(int fd, char *buffer, int length) {
     int new_length = assemble_iframe(data_frame, aux_frame, TRANSMITTER,
-                                     IF_CONTROL(fr_no), buffer, length);
-
+                                     IF_CONTROL(curr_fr_no), buffer, length);
+    int next_fr_no = (curr_fr_no + 1) % 2;
     int bytes_written;
-    bool success = false;
+
     for (int tries = 0; tries < CONNECTION_MAX_RET; tries++) {
         bytes_written = write(fd, data_frame, new_length);
 
@@ -301,38 +298,36 @@ int llwrite(int fd, char *buffer, int length) {
         }
 
         if (read_SUF(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
-                     SUF_CONTROL_RR((fr_no + 1) % 2)) == -1) {
+                     SUF_CONTROL_RR(next_fr_no)) == -1) {
             continue;
         }
 
-        fr_no = (fr_no + 1) % 2;
-        success = true;
+        curr_fr_no = next_fr_no;
         break;
     }
 
-    return success ? bytes_written : -1;
+    return curr_fr_no == next_fr_no ? bytes_written - 6 : -1;
 }
 
 int llread(int fd, char *buffer) {
     int bytes_read;
     char rr_frame[5];
-    bool succsess = false;
+    int next_fr_no = (curr_fr_no + 1) % 2;
 
-    assemble_suframe(rr_frame, TRANSMITTER, SUF_CONTROL_RR((fr_no + 1) % 2));
+    assemble_suframe(rr_frame, TRANSMITTER, SUF_CONTROL_RR(next_fr_no));
 
     for (int tries = 0; tries < CONNECTION_MAX_RET; tries++) {
         bytes_read = read_IF(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
-                             IF_CONTROL(fr_no), buffer);
+                             IF_CONTROL(curr_fr_no), buffer);
 
         if (bytes_read == -1) {
             continue;
         }
 
-        fr_no = (fr_no + 1) % 2;
+        curr_fr_no = next_fr_no;
         write(fd, rr_frame, sizeof rr_frame);
-        succsess = true;
         break;
     }
 
-    return succsess ? bytes_read : -1;
+    return curr_fr_no == next_fr_no ? bytes_read : -1;
 }

@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
 
     int fd;
     if ((fd = llopen(atoi(argv[1]), atoi(argv[2]))) < 0) {
-        fprintf(stdout, "Fail\n");
+        fprintf(stdout, "Fails setting connection\n");
         return -1;
     }
 
