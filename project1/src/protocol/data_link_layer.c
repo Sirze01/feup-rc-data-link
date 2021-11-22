@@ -10,6 +10,11 @@ static struct termios oldtio;
 
 device_role connection_role;
 
+char data_frame[IF_FRAME_SIZE];
+char aux_frame[IF_FRAME_SIZE]; // Ostritch
+
+int fr_no = 0;
+
 static int port_cleanup(int fd) {
     if (tcflush(fd, TCIOFLUSH) == -1) {
         return -1;
@@ -105,9 +110,73 @@ static int read_SUF(int fd, char addr, char cmd) {
     return 0;
 }
 
+static int read_IF(int fd, char addr, char cmd, char *buffer) {
+    char curr_byte;
+    bool valid = true;
+    bool complete = false;
+    int pkt_length = 0;
+
+    for (int i = 0; valid && !complete; i++) {
+        if (read(fd, &curr_byte, 1) < 0) {
+            break;
+        }
+
+        switch (i) {
+            case 0:
+                if (curr_byte != F_FLAG) {
+                    valid = false;
+                } else {
+                    data_frame[i] = curr_byte;
+                }
+                break;
+            case 1:
+                if (curr_byte != addr) {
+                    valid = false;
+                } else {
+                    data_frame[i] = curr_byte;
+                }
+                break;
+            case 2:
+                if (curr_byte != cmd) {
+                    valid = false;
+                } else {
+                    data_frame[i] = curr_byte;
+                }
+                break;
+            case 3:
+                data_frame[i] = curr_byte;
+                if (byte_xor(data_frame + 1, 3) != 0) {
+                    valid = false;
+                }
+                break;
+            default:
+                if (curr_byte == F_FLAG) {
+                    complete = true;
+                    pkt_length = i + 1;
+                }
+                data_frame[i] = curr_byte;
+                break;
+        }
+    }
+
+    if (!complete) {
+        return -1;
+    }
+
+    if ((pkt_length = destuff_bytes(data_frame, aux_frame, pkt_length)) == -1) {
+        return -1;
+    }
+
+    if (byte_xor(data_frame + 4, pkt_length - 5) != 0) {
+        return -1;
+    }
+
+    memcpy(buffer, data_frame + 4, pkt_length - 6);
+    return pkt_length - 6;
+}
+
 static int connection_setup(int fd, device_role role) {
     connection_role = role;
-
     char out_frame[5];
 
     if (connection_role == TRANSMITTER) {
@@ -188,18 +257,27 @@ int llopen(int port, device_role role) {
         return -1;
     }
 
-    if (connection_setup(fd, role) == -1) {
-        fprintf(stderr, "Failed establishing connection\n");
-        port_cleanup(fd);
-        return -1;
+    for (int tries = 0; tries < CONNECTION_MAX_RET; tries++) {
+        if (connection_setup(fd, role) == -1) {
+            fprintf(stderr, "Failed establishing connection\n");
+            port_cleanup(fd);
+            return -1;
+        } else {
+            break;
+        }
     }
 
     return fd;
 }
 
 int llclose(int fd) {
-    if (connection_disconnect(fd) == -1) {
-        return -1;
+
+    for (int tries = 0; tries < CONNECTION_MAX_RET; tries++) {
+        if (connection_disconnect(fd) == -1) {
+            return -1;
+        } else {
+            break;
+        }
     }
 
     if (port_cleanup(fd) == -1) {
@@ -207,4 +285,54 @@ int llclose(int fd) {
     }
 
     return 0;
+}
+
+int llwrite(int fd, char *buffer, int length) {
+    int new_length = assemble_iframe(data_frame, aux_frame, TRANSMITTER,
+                                     IF_CONTROL(fr_no), buffer, length);
+
+    int bytes_written;
+    bool success = false;
+    for (int tries = 0; tries < CONNECTION_MAX_RET; tries++) {
+        bytes_written = write(fd, data_frame, new_length);
+
+        if (bytes_written == -1) {
+            continue;
+        }
+
+        if (read_SUF(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
+                     SUF_CONTROL_RR((fr_no + 1) % 2)) == -1) {
+            continue;
+        }
+
+        fr_no = (fr_no + 1) % 2;
+        success = true;
+        break;
+    }
+
+    return success ? bytes_written : -1;
+}
+
+int llread(int fd, char *buffer) {
+    int bytes_read;
+    char rr_frame[5];
+    bool succsess = false;
+
+    assemble_suframe(rr_frame, TRANSMITTER, SUF_CONTROL_RR((fr_no + 1) % 2));
+
+    for (int tries = 0; tries < CONNECTION_MAX_RET; tries++) {
+        bytes_read = read_IF(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
+                             IF_CONTROL(fr_no), buffer);
+
+        if (bytes_read == -1) {
+            continue;
+        }
+
+        fr_no = (fr_no + 1) % 2;
+        write(fd, rr_frame, sizeof rr_frame);
+        succsess = true;
+        break;
+    }
+
+    return succsess ? bytes_read : -1;
 }

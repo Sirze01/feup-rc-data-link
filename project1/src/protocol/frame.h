@@ -20,7 +20,7 @@
 
 /* INFORMATION FRAME */
 /* F A C BCC1 Data BCC2 F */
-#define IF_FRAME_SIZE PATH_MAX
+#define IF_FRAME_SIZE 8096
 #define IF_CONTROL(no_seq) (no_seq << 6)
 
 typedef enum device_role { TRANSMITTER, RECEIVER } device_role;

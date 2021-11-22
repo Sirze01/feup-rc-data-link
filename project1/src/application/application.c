@@ -5,6 +5,7 @@
 #include "../protocol/data_link_layer.h"
 #include "../protocol/frame.h"
 
+/*
 static void print_bytes(char *buf, int size) {
     printf("size: %d\n", size);
     for (int i = 0; i < size; i++) {
@@ -12,6 +13,7 @@ static void print_bytes(char *buf, int size) {
     }
     printf("\n\n");
 }
+*/
 
 int main(int argc, char *argv[]) {
     /*
@@ -35,6 +37,15 @@ int main(int argc, char *argv[]) {
     }
 
     fprintf(stdout, "Connection set\n");
+
+    if (atoi(argv[2]) == 0) {
+        char hello[] = "Eu sou uma mensagem que viaja pelos cabos\n";
+        printf("%d\n", llwrite(fd, hello, sizeof hello));
+    } else {
+        char arr[20];
+        printf("%d -> ", llread(fd, arr));
+        printf("this : %s", arr);
+    }
 
     if (llclose(fd) < 0) {
         fprintf(stdout, "Fail closing\n");
