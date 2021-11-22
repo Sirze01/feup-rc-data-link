@@ -258,6 +258,12 @@ int llopen(int port, device_role role) {
         }
     }
 
+    if (!success) {
+        if (port_cleanup(fd) == -1) {
+            return -1;
+        }
+    }
+
     return success ? fd : -1;
 }
 
