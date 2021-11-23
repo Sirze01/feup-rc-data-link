@@ -9,14 +9,15 @@
 
 #define DEFAULT_DELAY_US 20000
 #define BAUDRATE B38400
-#define CONNECTION_TIMEOUT 30
+#define CONNECTION_TIMEOUT 5
 #define CONNECTION_MAX_RET 3
 #define NEXT_FRAME_NUMBER(curr) (curr + 1) % 2
 
 static struct termios oldtio;
 device_role connection_role;
-char frame[IF_FRAME_SIZE];
-char aux_frame[IF_FRAME_SIZE];
+char in_frame[IF_FRAME_SIZE];
+char out_frame[IF_FRAME_SIZE];
+
 int curr_fr_no = 0;
 
 static int cleanup_port(int fd) {
@@ -48,25 +49,26 @@ static int read_validate_SUF(int fd, char addr, char cmd) {
             case 0:
                 if (curr_byte != F_FLAG) {
                     valid = false;
+                    // printf("error here1 %x\n", curr_byte);
                 }
                 break;
             case 1:
                 if (curr_byte != addr) {
                     valid = false;
                 } else {
-                    frame[0] = curr_byte;
+                    in_frame[0] = curr_byte;
                 }
                 break;
             case 2:
                 if (curr_byte != cmd) {
                     valid = false;
                 } else {
-                    frame[1] = curr_byte;
+                    in_frame[1] = curr_byte;
                 }
                 break;
             case 3:
-                frame[2] = curr_byte;
-                if (byte_xor(frame, 3) != 0) {
+                in_frame[2] = curr_byte;
+                if (byte_xor(in_frame, 3) != 0) {
                     valid = false;
                 }
                 break;
@@ -99,26 +101,26 @@ static int read_validate_IF(int fd, char addr, char cmd, char *buffer) {
                 if (curr_byte != F_FLAG) {
                     valid = false;
                 } else {
-                    frame[i] = curr_byte;
+                    in_frame[i] = curr_byte;
                 }
                 break;
             case 1:
                 if (curr_byte != addr) {
                     valid = false;
                 } else {
-                    frame[i] = curr_byte;
+                    in_frame[i] = curr_byte;
                 }
                 break;
             case 2:
                 if (curr_byte != cmd) {
                     valid = false;
                 } else {
-                    frame[i] = curr_byte;
+                    in_frame[i] = curr_byte;
                 }
                 break;
             case 3:
-                frame[i] = curr_byte;
-                if (byte_xor(frame + 1, 3) != 0) {
+                in_frame[i] = curr_byte;
+                if (byte_xor(in_frame + 1, 3) != 0) {
                     valid = false;
                 }
                 break;
@@ -127,7 +129,7 @@ static int read_validate_IF(int fd, char addr, char cmd, char *buffer) {
                     complete = true;
                     frame_length = i + 1;
                 }
-                frame[i] = curr_byte;
+                in_frame[i] = curr_byte;
                 break;
         }
     }
@@ -136,23 +138,23 @@ static int read_validate_IF(int fd, char addr, char cmd, char *buffer) {
         return -1;
     }
 
-    if ((frame_length = destuff_bytes(frame, aux_frame, frame_length)) == -1) {
+    if ((frame_length = destuff_bytes(in_frame, frame_length)) == -1) {
         return -1;
     }
 
-    if (byte_xor(frame + 4, frame_length - 5) != 0) {
+    if (byte_xor(in_frame + 4, frame_length - 5) != 0) {
         return -1;
     }
 
-    memcpy(buffer, frame + 4, frame_length - 6);
+    memcpy(buffer, in_frame + 4, frame_length - 6);
     return frame_length;
 }
 
 static int setup_connection(int fd, device_role role) {
     connection_role = role;
     if (connection_role == TRANSMITTER) {
-        assemble_suframe(frame, TRANSMITTER, SUF_CONTROL_SET);
-        if (write(fd, frame, 5) == -1) {
+        assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_SET);
+        if (write(fd, out_frame, 5) == -1) {
             perror("Write suframe");
             return -1;
         }
@@ -165,8 +167,8 @@ static int setup_connection(int fd, device_role role) {
                               SUF_CONTROL_SET) == -1) {
             return -1;
         }
-        assemble_suframe(frame, TRANSMITTER, SUF_CONTROL_UA);
-        if (write(fd, frame, 5) == -1) {
+        assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_UA);
+        if (write(fd, out_frame, 5) == -1) {
             perror("Write suframe");
             return -1;
         }
@@ -176,8 +178,8 @@ static int setup_connection(int fd, device_role role) {
 
 static int connection_disconnect(int fd) {
     if (connection_role == TRANSMITTER) {
-        assemble_suframe(frame, TRANSMITTER, SUF_CONTROL_DISC);
-        if (write(fd, frame, 5) == -1) {
+        assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_DISC);
+        if (write(fd, out_frame, 5) == -1) {
             perror("Write suframe");
             return -1;
         }
@@ -185,8 +187,8 @@ static int connection_disconnect(int fd) {
                               SUF_CONTROL_DISC) == -1) {
             return -1;
         }
-        assemble_suframe(frame, TRANSMITTER, SUF_CONTROL_UA);
-        if (write(fd, frame, 5) == -1) {
+        assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_UA);
+        if (write(fd, out_frame, 5) == -1) {
             perror("Write suframe");
             return -1;
         }
@@ -196,8 +198,8 @@ static int connection_disconnect(int fd) {
                               SUF_CONTROL_DISC) == -1) {
             return -1;
         }
-        assemble_suframe(frame, TRANSMITTER, SUF_CONTROL_DISC);
-        if (write(fd, frame, 5) == -1) {
+        assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_DISC);
+        if (write(fd, out_frame, 5) == -1) {
             perror("Write suframe");
             return -1;
         }
@@ -308,13 +310,13 @@ int llwrite(int fd, char *buffer, int length) {
         return -1;
     }
 
-    int frame_length = assemble_iframe(frame, aux_frame, TRANSMITTER,
+    int frame_length = assemble_iframe(out_frame, TRANSMITTER,
                                        IF_CONTROL(curr_fr_no), buffer, length);
     int next_fr_no = NEXT_FRAME_NUMBER(curr_fr_no);
     int bytes_written = 0;
 
     for (int tries = 0; tries < CONNECTION_MAX_RET; tries++) {
-        if ((bytes_written = write(fd, frame, frame_length)) == -1) {
+        if ((bytes_written = write(fd, out_frame, frame_length)) == -1) {
             usleep(DEFAULT_DELAY_US);
             continue;
         }
@@ -329,7 +331,7 @@ int llwrite(int fd, char *buffer, int length) {
         break;
     }
 
-    return curr_fr_no == next_fr_no ? bytes_written - 6 : -1;
+    return curr_fr_no == next_fr_no ? (bytes_written - 6) : -1;
 }
 
 int llread(int fd, char *buffer) {
@@ -341,8 +343,9 @@ int llread(int fd, char *buffer) {
     int bytes_read = -1;
     int next_fr_no = NEXT_FRAME_NUMBER(curr_fr_no);
 
-    assemble_suframe(frame, TRANSMITTER, SUF_CONTROL_RR(next_fr_no));
-
+    assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_RR(next_fr_no));
+    printf("%x%x%x%x%x\n", out_frame[0], out_frame[1], out_frame[2],
+           out_frame[3], out_frame[4]);
     for (int tries = 0; tries < CONNECTION_MAX_RET; tries++) {
         if ((bytes_read = read_validate_IF(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                            IF_CONTROL(curr_fr_no), buffer)) ==
@@ -352,12 +355,12 @@ int llread(int fd, char *buffer) {
         }
 
         curr_fr_no = next_fr_no;
-        if (write(fd, frame, 5) == -1) {
+        if (write(fd, out_frame, 5) == -1) {
             perror("Write suframe");
             return -1;
         }
         break;
     }
 
-    return curr_fr_no == next_fr_no ? bytes_read - 6 : -1;
+    return curr_fr_no == next_fr_no ? (bytes_read - 6) : -1;
 }
