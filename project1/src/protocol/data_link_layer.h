@@ -25,7 +25,7 @@ int llwrite(int fd, char *buffer, int length);
  * @brief Read packet from a previously opened data link to buffer.
  *
  * @param fd data link file descriptor
- * @param buffer
+ * @param buffer output
  * @return number of read chars, -1 in case of error
  */
 int llread(int fd, char *buffer);
@@ -34,6 +34,6 @@ int llread(int fd, char *buffer);
  * @brief Close a previously opened data link.
  *
  * @param fd data link file descriptor
- * @return positive value in case of success, negative otherwise
+ * @return -1 in case of error, 0 otherwise
  */
 int llclose(int fd);
