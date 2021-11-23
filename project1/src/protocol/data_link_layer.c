@@ -14,7 +14,7 @@
 
 /* Protocol settings */
 #define BAUDRATE B38400
-#define CONNECTION_TIMEOUT_TS 30
+#define CONNECTION_TIMEOUT_TS 10
 #define CONNECTION_MAX_RETRIES 3
 #define NEXT_FRAME_NUMBER(curr) (curr + 1) % 2
 
@@ -32,14 +32,13 @@ static char curr_frame_number = 0;
  * @param fd serial port file descriptor
  * @return -1 on error, 0 otherwise
  */
-static int restore_port_settings(int fd) {
-    if (tcflush(fd, TCIOFLUSH) == -1) {
+static int restore_close_port(int fd) {
+    if ((tcflush(fd, TCIOFLUSH) == -1) |
+        (tcsetattr(fd, TCSANOW, &oldtio) == -1)) {
+        close(fd);
         return -1;
     }
-    if (tcsetattr(fd, TCSANOW, &oldtio) == -1) {
-        return -1;
-    }
-    return 0;
+    return close(fd);
 }
 
 /**
@@ -118,8 +117,7 @@ int llopen(int port, device_role role) {
     }
 
     /* Open port */
-    int fd =
-        open(port_path, O_RDWR | O_NOCTTY); /* Open in non canonical mode */
+    int fd = open(port_path, O_RDWR | O_NOCTTY); /* Do not control terminal */
     if (fd == -1) {
         perror("Error opening port");
         return -1;
@@ -131,29 +129,17 @@ int llopen(int port, device_role role) {
     }
 
     /* Set new port configuration */
-    for (;;) {
-        struct termios newtio = oldtio;
-        newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
-        newtio.c_iflag = IGNPAR;
-        newtio.c_oflag = 0;
-        newtio.c_lflag = 0;                         /* Non canonical */
-        newtio.c_cc[VTIME] = CONNECTION_TIMEOUT_TS; /* Timeout for reads */
-        newtio.c_cc[VMIN] = 0; /* Do not block waiting for characters */
-        if (tcflush(fd, TCIOFLUSH) == -1) {
-            return -1;
-        }
-        if (tcsetattr(fd, TCSANOW, &newtio) == -1) {
-            return -1;
-        }
-        struct termios c;
-        tcgetattr(fd, &c);
-        printf("a0: %d\n", c.c_cflag);
-        printf("a1: %d\n", c.c_iflag);
-        printf("a2: %d\n", c.c_oflag);
-        printf("a3: %d\n", c.c_lflag);
-        printf("a4: %d\n", c.c_cc[VTIME]);
-        printf("a5: %d\n", c.c_cc[VMIN]);
-        break;
+    struct termios newtio = oldtio;
+    newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;
+    newtio.c_iflag = IGNPAR;
+    newtio.c_oflag = 0;
+    newtio.c_lflag = 0;                         /* Non canonical */
+    newtio.c_cc[VTIME] = CONNECTION_TIMEOUT_TS; /* Timeout for reads */
+    newtio.c_cc[VMIN] = 0; /* Do not block waiting for characters */
+    if ((tcflush(fd, TCIOFLUSH) == -1) |
+        (tcsetattr(fd, TCSANOW, &newtio) == -1)) {
+        restore_close_port(fd);
+        return -1;
     }
 
     /* Setup connection */
@@ -184,7 +170,7 @@ int llopen(int port, device_role role) {
         }
     }
 
-    restore_port_settings(fd);
+    restore_close_port(fd);
     return -1;
 }
 
@@ -201,7 +187,7 @@ int llclose(int fd) {
                 sleep_continue;
             }
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_UA);
-            if (write(fd, out_frame, 5) == -1) {
+            if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
                 perror("Write suframe");
                 sleep_continue;
             }
@@ -211,7 +197,7 @@ int llclose(int fd) {
                 sleep_continue;
             }
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_DISC);
-            if (write(fd, out_frame, 5) == -1) {
+            if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
                 perror("Write suframe");
                 sleep_continue;
             }
@@ -220,13 +206,11 @@ int llclose(int fd) {
                 sleep_continue;
             }
         }
-        restore_port_settings(fd);
-        close(fd);
+        restore_close_port(fd);
         return 0;
     }
     fprintf(stderr, "Connection was improperly closed, other end may hang\n");
-    restore_port_settings(fd);
-    close(fd);
+    restore_close_port(fd);
     return -1;
 }
 
