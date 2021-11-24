@@ -8,7 +8,6 @@
 #include <string.h>
 #include <strings.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
 #include "../protocol/data_link.h"
 #include "packet.h"
