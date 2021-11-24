@@ -44,7 +44,8 @@ int destuff_bytes(char *data, int data_size) {
     for (int i = 0; i < data_size; i++) {
         if (data[i] == F_ESCAPE_CHAR) {
             if (i == data_size - 1) {
-                continue;
+                fprintf(stderr, "Stuffed data is corrupted");
+                return -1;
             }
             if (data[i + 1] == 0x5e) {
                 aux_frame[new_size++] = F_FLAG;
@@ -53,7 +54,8 @@ int destuff_bytes(char *data, int data_size) {
                 aux_frame[new_size++] = F_ESCAPE_CHAR;
                 i++;
             } else {
-                aux_frame[new_size++] = data[i];
+                fprintf(stderr, "Stuffed data is corrupted");
+                return -1;
             }
         } else {
             aux_frame[new_size++] = data[i];
@@ -103,10 +105,13 @@ int read_frame(char *out_frame, int max_frame_size, int fd) {
     }
 
     /* Discard until flag */
+    out_frame[0] = 0;
     while (out_frame[0] != F_FLAG) {
         if (read(fd, out_frame, 1) <= 0) {
+            /*             printf("im reading nothing...\n"); */
             return -1;
         }
+        /*         printf("out_frame[0] = %x\n", out_frame[0]); */
     }
 
     /* Read until flag */
@@ -117,6 +122,7 @@ int read_frame(char *out_frame, int max_frame_size, int fd) {
         if (read(fd, out_frame + i, 1) <= 0) {
             return -1;
         }
+        /*         printf("out_frame[%d] = %x\n", i, out_frame[i]); */
         if (out_frame[i] == F_FLAG) {
             return i + 1;
         }
