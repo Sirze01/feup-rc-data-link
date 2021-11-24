@@ -36,8 +36,8 @@ static void restore_close_port(int fd) {
 }
 
 /**
- * @brief Read supervisioned/not numbered frame and assert content is as
- * expected.
+ * @brief Blocks until supervisioned/not numbered frame is received and assert
+ * content is as expected.
  *
  * @param fd serial port file descriptor
  * @param addr expected address
@@ -45,25 +45,20 @@ static void restore_close_port(int fd) {
  * @return -1 on success, 0 otherwise
  */
 static int read_validate_suf(int fd, char addr, char cmd) {
+    /* Read frame */
+    int s = -1;
+    while ((s = read_frame(in_frame, SUF_FRAME_SIZE, fd)) != SUF_FRAME_SIZE) {
+        sleep_continue;
+    }
+
+    /* Validate frame */
     char expected_suf[SUF_FRAME_SIZE] = {F_FLAG, addr, cmd, addr ^ cmd, F_FLAG};
-    bzero(in_frame, SUF_FRAME_SIZE);
-    bool valid = true;
-    for (int i = 0; i < SUF_FRAME_SIZE;) {
-        int r = read(fd, in_frame + i, 1);
-        if (r <= 0) {
+    for (int i = 0; i < SUF_FRAME_SIZE; i++) {
+        if (in_frame[i] != expected_suf[i]) {
             return -1;
-        }
-        if (!valid && in_frame[i] == F_FLAG) {
-            return -1;
-        } else if (in_frame[i] != expected_suf[i]) {
-            printf("in_frame[%d]: %x, expected: %x\n", i, in_frame[i],
-                   expected_suf[i]);
-            valid = false;
-        } else {
-            i++;
         }
     }
-    return valid ? 0 : -1;
+    return 0;
 }
 
 /**

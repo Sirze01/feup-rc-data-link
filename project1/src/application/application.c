@@ -16,6 +16,8 @@ static void print_bytes(char *buf, int size) {
 */
 
 int main(int argc, char *argv[]) {
+    setbuf(stdout, NULL);
+    setbuf(stderr, NULL);
     /*
     char mbytes[12] = {0x7a, 0x7e, 0x7d, 0x0, 0x0, 0x0};
     char aux[12];
