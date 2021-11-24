@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
     fprintf(stdout, "Connection set\n");
 
     if (atoi(argv[2]) == 0) {
-        char hello[] = "Eu sou uma mensagem que viaja pelos cabos\n";
+        char hello[] = "Tu és uma mensagem que viaja pelos cabos\n";
         printf("%d\n", llwrite(fd, hello, sizeof hello));
     } else {
         char arr[20];

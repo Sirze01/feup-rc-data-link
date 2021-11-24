@@ -51,19 +51,24 @@ static int restore_close_port(int fd) {
  * @return -1 on success, 0 otherwise
  */
 static int read_validate_suf(int fd, char addr, char cmd) {
-    char expected_suf[5] = {F_FLAG, addr, cmd, addr ^ cmd, F_FLAG};
+    char expected_suf[SUF_FRAME_SIZE] = {F_FLAG, addr, cmd, addr ^ cmd, F_FLAG};
     bzero(in_frame, SUF_FRAME_SIZE);
-    for (int i = 0; i < 5; i++) {
-        if (read(fd, in_frame + i, 1) < 0) {
+    bool valid = true;
+    for (int i = 0; i < SUF_FRAME_SIZE;) {
+        if (read(fd, in_frame + i, 1) <= 0) {
             return -1;
         }
-        if (in_frame[i] != expected_suf[i]) {
+        if (!valid && in_frame[i] == F_FLAG) {
+            return -1;
+        } else if (in_frame[i] != expected_suf[i]) {
             printf("in_frame[%d]: %x, expected: %x\n", i, in_frame[i],
                    expected_suf[i]);
-            return -1;
+            valid = false;
+        } else {
+            i++;
         }
     }
-    return 0;
+    return valid ? 0 : -1;
 }
 
 /**
@@ -73,35 +78,42 @@ static int read_validate_suf(int fd, char addr, char cmd) {
  * @param addr expected address
  * @param cmd expected command
  * @param out_data_buffer buffer to write data to (no headers)
- * @return read frame length
+ * @return read data length
  */
 static int read_validate_if(int fd, char addr, char cmd,
                             char *out_data_buffer) {
     char expected_if_header[4] = {F_FLAG, addr, cmd, addr ^ cmd};
     bzero(in_frame, 4);
     int frame_length = 0;
+    bool valid = true;
     for (int i = 0; i < IF_FRAME_SIZE; i++) {
-        if (read(fd, in_frame + i, 1) < 0) {
+        if (read(fd, in_frame + i, 1) <= 0) {
             return -1;
         }
+        printf("in_frame: %x\n", in_frame[i]);
         if (i <= 3) {
             if (in_frame[i] != expected_if_header[i]) {
-                return -1;
+                valid = false;
             }
         } else if (in_frame[i] == F_FLAG) {
             frame_length = i + 1;
             break;
         }
     }
-    if ((frame_length = destuff_bytes(in_frame, frame_length)) == -1) {
+    if (!valid) {
         return -1;
     }
-    if (byte_xor(in_frame + 4, frame_length - 6) !=
-        in_frame[frame_length - 2]) {
+    char bcc2 = in_frame[frame_length - 2];
+    int data_length = destuff_bytes(in_frame + 4, frame_length - 6);
+    if (data_length == -1) {
         return -1;
     }
-    memcpy(out_data_buffer, in_frame + 4, frame_length - 6);
-    return frame_length;
+    if (byte_xor(in_frame + 4, data_length) != bcc2) {
+        // send RR here (handle on the other side?)
+        return -1;
+    }
+    memcpy(out_data_buffer, in_frame + 4, data_length);
+    return data_length;
 }
 
 int llopen(int port, device_role role) {
@@ -178,7 +190,7 @@ int llclose(int fd) {
     for (int tries = 0; tries < CONNECTION_MAX_RETRIES; tries++) {
         if (connection_role == TRANSMITTER) {
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_DISC);
-            if (write(fd, out_frame, 5) == -1) {
+            if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
                 perror("Write suframe");
                 sleep_continue;
             }
@@ -263,7 +275,7 @@ int llread(int fd, char *buffer) {
             sleep_continue;
         }
         curr_frame_number = next_frame_number;
-        return read_bytes - 6;
+        return read_bytes;
     }
     return -1;
 }

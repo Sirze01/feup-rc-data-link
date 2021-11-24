@@ -41,8 +41,7 @@ int destuff_bytes(char *data, int data_size) {
     for (int i = 0; i < data_size; i++) {
         if (data[i] == F_ESCAPE_CHAR) {
             if (i == data_size - 1) {
-                perror("Stuffed data is corrupted");
-                return -1;
+                continue;
             }
             if (data[i + 1] == 0x5e) {
                 aux_frame[new_size++] = F_FLAG;
@@ -51,8 +50,7 @@ int destuff_bytes(char *data, int data_size) {
                 aux_frame[new_size++] = F_ESCAPE_CHAR;
                 i++;
             } else {
-                perror("Stuffed data is corrupted");
-                return -1;
+                aux_frame[new_size++] = data[i];
             }
         } else {
             aux_frame[new_size++] = data[i];
