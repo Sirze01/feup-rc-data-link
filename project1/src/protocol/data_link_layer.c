@@ -23,7 +23,6 @@ static struct termios oldtio;
 static device_role connection_role;
 static char in_frame[IF_FRAME_SIZE];
 static char out_frame[IF_FRAME_SIZE];
-static char curr_frame_number = 0;
 
 /**
  * @brief Restore previously changed serial port configuration and close file
@@ -227,9 +226,10 @@ int llwrite(int fd, char *buffer, int length) {
         return -1;
     }
 
+    static char curr_frame_number = 0;
+    int next_frame_number = NEXT_FRAME_NUMBER(curr_frame_number);
     int frame_length = assemble_iframe(
         out_frame, TRANSMITTER, IF_CONTROL(curr_frame_number), buffer, length);
-    int next_frame_number = NEXT_FRAME_NUMBER(curr_frame_number);
     for (int tries = 0; tries < CONNECTION_MAX_RETRIES; tries++) {
         write(fd, out_frame, frame_length);
         if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
@@ -248,6 +248,7 @@ int llread(int fd, char *buffer) {
         return -1;
     }
 
+    static char curr_frame_number = 0;
     int next_frame_number = NEXT_FRAME_NUMBER(curr_frame_number);
     assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_RR(next_frame_number));
     for (int tries = 0; tries < CONNECTION_MAX_RETRIES; tries++) {

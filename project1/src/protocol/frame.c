@@ -1,7 +1,10 @@
 #include "frame.h"
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
+#include <unistd.h>
 
 static char aux_frame[IF_FRAME_SIZE];
 
@@ -92,4 +95,30 @@ int assemble_iframe(char *out_frame, device_role role, char ctr,
     out_frame[5 + stuffed_data_size] = F_FLAG;
 
     return 6 + stuffed_data_size;
+}
+
+int read_frame(char *out_frame, int max_frame_size, int fd) {
+    if (max_frame_size < SUF_FRAME_SIZE) {
+        return -1;
+    }
+
+    /* Discard until flag */
+    while (out_frame[0] != F_FLAG) {
+        if (read(fd, out_frame, 1) <= 0) {
+            return -1;
+        }
+    }
+
+    /* Read until flag */
+    for (int i = 1;; i++) {
+        if (i == max_frame_size) {
+            return -1;
+        }
+        if (read(fd, out_frame + i, 1) <= 0) {
+            return -1;
+        }
+        if (out_frame[i] == F_FLAG) {
+            return i + 1;
+        }
+    }
 }
