@@ -15,7 +15,7 @@
 /* Protocol settings */
 #define BAUDRATE B38400
 #define CONNECTION_TIMEOUT_TS 10
-#define CONNECTION_MAX_RETRIES 3
+#define CONNECTION_MAX_RETRIES 5
 #define NEXT_FRAME_NUMBER(curr) (curr + 1) % 2
 
 /* Buffers */
@@ -30,15 +30,10 @@ static char curr_frame_number = 0;
  * descriptor.
  *
  * @param fd serial port file descriptor
- * @return -1 on error, 0 otherwise
  */
-static int restore_close_port(int fd) {
-    if ((tcflush(fd, TCIOFLUSH) == -1) |
-        (tcsetattr(fd, TCSANOW, &oldtio) == -1)) {
-        close(fd);
-        return -1;
-    }
-    return close(fd);
+static void restore_close_port(int fd) {
+    tcsetattr(fd, TCSADRAIN, &oldtio);
+    close(fd);
 }
 
 /**
@@ -55,7 +50,8 @@ static int read_validate_suf(int fd, char addr, char cmd) {
     bzero(in_frame, SUF_FRAME_SIZE);
     bool valid = true;
     for (int i = 0; i < SUF_FRAME_SIZE;) {
-        if (read(fd, in_frame + i, 1) <= 0) {
+        int r = read(fd, in_frame + i, 1);
+        if (r <= 0) {
             return -1;
         }
         if (!valid && in_frame[i] == F_FLAG) {
@@ -156,7 +152,7 @@ int llopen(int port, device_role role) {
 
     /* Setup connection */
     connection_role = role;
-    for (int tries = 0; tries < CONNECTION_MAX_RETRIES; tries++) {
+    for (;;) {
         if (connection_role == TRANSMITTER) {
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_SET);
             if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
@@ -187,34 +183,27 @@ int llopen(int port, device_role role) {
 }
 
 int llclose(int fd) {
-    for (int tries = 0; tries < CONNECTION_MAX_RETRIES; tries++) {
+    for (;;) {
         if (connection_role == TRANSMITTER) {
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_DISC);
-            if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
-                perror("Write suframe");
-                sleep_continue;
-            }
+            write(fd, out_frame, SUF_FRAME_SIZE);
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_DISC) == -1) {
                 sleep_continue;
             }
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_UA);
-            if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
-                perror("Write suframe");
-                sleep_continue;
-            }
+            write(fd, out_frame, SUF_FRAME_SIZE);
         } else {
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_DISC) == -1) {
+                printf("estou preso 1\n");
                 sleep_continue;
             }
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_DISC);
-            if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
-                perror("Write suframe");
-                sleep_continue;
-            }
-            if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
-                                  SUF_CONTROL_UA) == -1) {
+            write(fd, out_frame, SUF_FRAME_SIZE);
+            while (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
+                                     SUF_CONTROL_UA) == -1) {
+                printf("estou preso 2\n");
                 sleep_continue;
             }
         }
@@ -242,16 +231,13 @@ int llwrite(int fd, char *buffer, int length) {
         out_frame, TRANSMITTER, IF_CONTROL(curr_frame_number), buffer, length);
     int next_frame_number = NEXT_FRAME_NUMBER(curr_frame_number);
     for (int tries = 0; tries < CONNECTION_MAX_RETRIES; tries++) {
-        int written_bytes = -1;
-        if ((written_bytes = write(fd, out_frame, frame_length)) == -1) {
-            sleep_continue;
-        }
+        write(fd, out_frame, frame_length);
         if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                               SUF_CONTROL_RR(next_frame_number)) == -1) {
             sleep_continue;
         }
         curr_frame_number = next_frame_number;
-        return written_bytes - 6;
+        return frame_length - 6;
     }
     return -1;
 }
@@ -271,9 +257,7 @@ int llread(int fd, char *buffer) {
                                            buffer)) == -1) {
             sleep_continue;
         }
-        if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
-            sleep_continue;
-        }
+        write(fd, out_frame, SUF_FRAME_SIZE);
         curr_frame_number = next_frame_number;
         return read_bytes;
     }
