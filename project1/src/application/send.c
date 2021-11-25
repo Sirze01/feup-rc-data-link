@@ -5,21 +5,12 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+// #include "../protocol/data_link.h"
 #include "packet.h"
 #include "send.h"
 
 static int fd = -1;
-static unsigned char packet[4096];
-
-/* Placeholders...*/
-static void llwrite() {
-}
-static void llread() {
-}
-static void llclose() {
-}
-static void llopen() {
-}
+static char packet[4096];
 
 int send_file(char *file_path, char *file_name, int port,
               int bytes_per_packet) {
@@ -31,19 +22,17 @@ int send_file(char *file_path, char *file_name, int port,
     }
 
     /* Open stream */
-    llopen();
+    // llopen();
 
     /* Send start packet */
     if (strcmp(file_name, "") == 0) {
-        assemble_control_packet(packet, 0, 1, sizeof(int),
-                                (unsigned char *)&st.st_size);
+        assemble_control_packet(packet, 0, 1, sizeof(int), (char *)&st.st_size);
     } else {
         int file_name_len = strlen(file_name);
-        assemble_control_packet(packet, 0, 2, sizeof(int),
-                                (unsigned char *)&st.st_size, file_name_len,
-                                (unsigned char *)file_name);
+        assemble_control_packet(packet, 0, 2, sizeof(int), (char *)&st.st_size,
+                                file_name_len, (char *)file_name);
     }
-    llwrite();
+    // llwrite();
 
     /* Open file for reading */
     fd = open(file_path, O_RDONLY);
@@ -53,27 +42,25 @@ int send_file(char *file_path, char *file_name, int port,
     }
 
     /* Send file to stream at given rate */
-    unsigned char data[4096];
+    char data[4096];
     unsigned seq_no = 0;
     for (int i = 0; i < st.st_size; i += bytes_per_packet) {
         if (read(fd, data, bytes_per_packet) != bytes_per_packet) {
             break;
         }
         assemble_data_packet(packet, seq_no++, data, bytes_per_packet);
-        llwrite();
+        // llwrite();
     }
 
     /* Send end packet */
     if (strcmp(file_name, "") == 0) {
-        assemble_control_packet(packet, 1, 1, sizeof(int),
-                                (unsigned char *)&st.st_size);
+        assemble_control_packet(packet, 1, 1, sizeof(int), (char *)&st.st_size);
     } else {
         int file_name_len = strlen(file_name);
-        assemble_control_packet(packet, 1, 2, sizeof(int),
-                                (unsigned char *)&st.st_size, file_name_len,
-                                (unsigned char *)file_name);
+        assemble_control_packet(packet, 1, 2, sizeof(int), (char *)&st.st_size,
+                                file_name_len, (char *)file_name);
     }
-    llwrite();
+    // llwrite();
 
     /* Close file */
     if (close(fd) == -1) {
@@ -82,7 +69,7 @@ int send_file(char *file_path, char *file_name, int port,
     }
 
     /* Close stream */
-    llclose();
+    // llclose();
 
     return -1;
 }

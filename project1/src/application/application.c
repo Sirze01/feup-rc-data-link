@@ -11,15 +11,18 @@
 
 #include "../protocol/data_link.h"
 #include "packet.h"
+#include "receive.h"
+#include "send.h"
 
 #define PATH_MAX 4096
 
 static int port = -1;
+int bytes_per_packet = -1;
 static char file_path[PATH_MAX] = "";
 static char file_name[PATH_MAX] = "";
 static device_role role;
 
-static void print_bytes(unsigned char *buf, int size) {
+static void print_bytes(char *buf, int size) {
     printf("size: %d\n", size);
     for (int i = 0; i < size; i++) {
         printf("%x ", buf[i]);
@@ -65,11 +68,12 @@ void parse_options(int argc, char **argv) {
 }
 
 void assert_valid_options() {
-    if (port < 0 || port > 3) {
+    /* if (port < 0 || port > 3) {
         printf("Port should be one of 0, 1, 2, 3\n");
         exit(-1);
-    }
-    if (strcmp(file_path, "") == 0) {
+    } */
+
+    if (strlen(file_path) == 0) {
         printf("Empty file path\n");
         exit(-1);
     }
@@ -85,10 +89,15 @@ int main(int argc, char **argv) {
 
     switch (role) {
         case TRANSMITTER:
-            return 0;
+            if (send_file(file_path, file_name, port, bytes_per_packet) != 0) {
+                printf("No file sent\n");
+            }
             break;
         case RECEIVER:
-            return 0;
+
+            if (receive_file(file_path, port) != 0) {
+                printf("No file received\n");
+            }
             break;
     }
 

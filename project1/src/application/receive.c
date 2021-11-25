@@ -4,29 +4,21 @@
 #include <string.h>
 #include <unistd.h>
 
+// #include "../protocol/data_link.h"
 #include "packet.h"
 
 #define DEFAULT_OUT_FILE_NAME "out_file"
 
-static void llwrite() {
-}
-static void llread() {
-}
-static void llclose() {
-}
-static void llopen() {
-}
-
-static unsigned char packet[4096];
+static char packet[4096];
 
 int receive_file(char *out_file_path, int port) {
     /* Open stream */
-    llopen();
+    // llopen();
 
     /* Read start control packet */
     int fsize = -1;
     int namesize = -1;
-    llread();                            // to packet...
+    // llread();                            // to packet...
     int read_bytes = 4;                  // from llread...
     if (packet[0] != CP_CONTROL_START) { // repeat...
     } else {
@@ -47,13 +39,13 @@ int receive_file(char *out_file_path, int port) {
     }
 
     /* Read from stream and write to file */
-    llread();
-    // write...
+    // llread();
+    //  write...
 
     /* Read close control packet */
     // read...
 
-    llclose();
+    // llclose();
 
     return -1;
 }
