@@ -24,6 +24,7 @@ int receive_file(char *out_file_path, char *out_file_name, int port) {
     /* Read start control packet */
     int file_size = 0;
     int file_name_length = 0;
+    int bytes_per_packet = 0;
 
     if ((packet_length = llread(port_fd, packet)) == -1) {
         fprintf(stderr, "Can't read start packet\n");
@@ -34,17 +35,23 @@ int receive_file(char *out_file_path, char *out_file_name, int port) {
     }
 
     if (packet[0] == CP_CONTROL_START) {
-        for (int i = 1, arg = 0; arg < 2;) {
+        for (int i = 1, arg = 0; arg < 3;) {
             switch (packet[i]) {
                 case CP_TYPE_SIZE:
-                    memcpy(&file_size, &packet[i + 2], packet[i + 1]);
+                    memcpy(&file_size, packet + i + 2, packet[i + 1]);
                     i += (2 + packet[i + 1]);
                     arg++;
                     break;
                 case CP_TYPE_FILENAME:
-                    memcpy(&file_name_length, &packet[i + 1], 2);
-                    memcpy(file_name, &packet[i + 3], file_name_length);
-                    i += (3 + file_name_length);
+                    memcpy(&file_name_length, packet + i + 1, sizeof(int));
+                    i += (1 + sizeof(int));
+                    memcpy(file_name, packet + i, file_name_length);
+                    i += file_name_length;
+                    arg++;
+                    break;
+                case CP_TYPE_BYTES_PER_PACKET:
+                    memcpy(&bytes_per_packet, packet + i + 2, packet[i + 1]);
+                    i += (2 + packet[i + 1]);
                     arg++;
                     break;
                 default:
@@ -56,7 +63,7 @@ int receive_file(char *out_file_path, char *out_file_name, int port) {
             }
         }
     } else {
-        fprintf(stderr, "The packet received is not a starting one\n");
+        fprintf(stderr, "Unexpected packet type\n");
         if (llclose(port_fd) == -1) {
             fprintf(stderr, "Can't close port\n");
         }
@@ -71,7 +78,6 @@ int receive_file(char *out_file_path, char *out_file_name, int port) {
     } else {
         strncpy(file_name, out_file_name, strlen(out_file_name) + 1);
     }
-    int file_name_len = strlen(file_name);
 
     snprintf(file_path, PATH_MAX, "%s/%s", out_file_path, file_name);
     int fd = -1;
@@ -96,17 +102,7 @@ int receive_file(char *out_file_path, char *out_file_name, int port) {
         if (packet[0] == CP_CONTROL_END) {
             break;
         }
-        /* if (packet[0] != DP_CONTROL || packet[1] != (seq_no + 1) % 256) {
-            fprintf(stderr, "The packet received is not in sequence\n");
-            if (llclose(port_fd) == -1) {
-                fprintf(stderr, "Can't close port\n");
-            }
-            if (close(fd) == -1) {
-                perror("Closing file");
-            }
-            return -1;
-            ;
-        }*/
+
         write(fd, &packet[4], packet[2] * 256 + packet[3]);
         seq_no++;
     }

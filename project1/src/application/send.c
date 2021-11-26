@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <unistd.h>
 
 #include "../protocol/data_link.h"
@@ -10,6 +9,14 @@
 #include "send.h"
 
 static char packet_file_name[PATH_MAX];
+
+static void print_bytes(char *buf, int size) {
+    printf("size: %d\n", size);
+    for (int i = 0; i < size; i++) {
+        printf("%x ", buf[i]);
+    }
+    printf("\n\n");
+}
 
 int send_file(char *file_path, char *file_name, int port,
               int bytes_per_packet) {
@@ -53,10 +60,9 @@ int send_file(char *file_path, char *file_name, int port,
     /* Send start packet */
     char packet[MAX_PACKET_SIZE];
     int packet_size = -1;
-    packet_size = assemble_control_packet(
-        packet, 0, 2, CP_TYPE_SIZE, sizeof(int), (char *)&st.st_size,
-        CP_TYPE_FILENAME, packet_file_name_len, packet_file_name);
-
+    packet_size =
+        assemble_control_packet(packet, 0, st.st_size, bytes_per_packet,
+                                packet_file_name, packet_file_name_len);
     if (llwrite(port_fd, packet, packet_size) < packet_size) {
         fprintf(stderr, "Failed writing start control packet\n");
         if (llclose(port_fd) == -1) {
@@ -69,7 +75,7 @@ int send_file(char *file_path, char *file_name, int port,
     }
 
     /* Send file to stream at given rate */
-    char data[4096];
+    char data[MAX_DATA_PER_PACKET_SIZE];
     unsigned seq_no = 0;
     int bytes_read = -1;
     for (int i = 0; i < st.st_size; i += bytes_read) {
@@ -91,12 +97,10 @@ int send_file(char *file_path, char *file_name, int port,
         }
     }
 
-    printf("Out\n");
-
     /* Send end packet */
-    packet_size = assemble_control_packet(
-        packet, 1, 2, CP_TYPE_SIZE, sizeof(int), (char *)&st.st_size,
-        CP_TYPE_FILENAME, packet_file_name_len, packet_file_name);
+    packet_size =
+        assemble_control_packet(packet, 1, st.st_size, bytes_per_packet,
+                                packet_file_name, packet_file_name_len);
 
     if (llwrite(port_fd, packet, packet_size) < packet_size) {
         printf("Failed writing end control packet\n");

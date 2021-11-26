@@ -8,6 +8,7 @@
 #define CP_CONTROL_END 3
 #define CP_TYPE_SIZE 0
 #define CP_TYPE_FILENAME 1
+#define CP_TYPE_BYTES_PER_PACKET 2
 
 /* DATA PACKET */
 #define DP_CONTROL 1
@@ -15,6 +16,6 @@
 
 int assemble_data_packet(char *out_packet, int seq_no, char *data,
                          unsigned data_size);
-int assemble_control_packet(char *out_packet, int end, int no_args,
-                            int arg1_type, int arg1_size, char *arg1_value,
-                            ...);
+int assemble_control_packet(char *out_packet, int end, int file_size,
+                            int bytes_per_packet, char *file_name,
+                            int file_name_length);

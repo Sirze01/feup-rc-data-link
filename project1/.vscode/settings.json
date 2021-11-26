@@ -19,7 +19,15 @@
         "hash_map": "c",
         "string_view": "c",
         "initializer_list": "c",
-        "utility": "c"
+        "utility": "c",
+        "data_link.h": "c",
+        "types.h": "c",
+        "packet.h": "c",
+        "getopt.h": "c",
+        "stdio.h": "c",
+        "send.h": "c",
+        "fcntl.h": "c",
+        "receive.h": "c"
     },
     "cpplint.filters": [
         "-whitespace",
