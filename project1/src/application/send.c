@@ -86,8 +86,8 @@ int send_file(char *file_path, char *file_name, int port,
                 fprintf(stderr,
                         "Failed reading data from file for data packet %d\n",
                         seq_no++);
+                break;
             }
-            break;
         }
 
         packet_size = assemble_data_packet(packet, seq_no++, data, bytes_read);
