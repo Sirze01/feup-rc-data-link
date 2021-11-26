@@ -51,7 +51,7 @@ int send_file(char *file_path, char *file_name, int port,
     }
 
     /* Send start packet */
-    char packet[4096];
+    char packet[MAX_PACKET_SIZE];
     int packet_size = -1;
     packet_size = assemble_control_packet(
         packet, 0, 2, CP_TYPE_SIZE, sizeof(int), (char *)&st.st_size,
@@ -90,6 +90,8 @@ int send_file(char *file_path, char *file_name, int port,
             break;
         }
     }
+
+    printf("Out\n");
 
     /* Send end packet */
     packet_size = assemble_control_packet(

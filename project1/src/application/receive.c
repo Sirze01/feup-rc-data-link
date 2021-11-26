@@ -90,7 +90,14 @@ int receive_file(char *out_file_path, char *out_file_name, int port) {
     int bytes_read = 0;
     for (;;) {
         if ((bytes_read = llread(port_fd, packet)) == -1) {
-            fprintf(stderr, "The packet received is not a starting one\n");
+            fprintf(stderr, "The packet received is corrupted\n");
+            continue;
+        }
+        if (packet[0] == CP_CONTROL_END) {
+            break;
+        }
+        /* if (packet[0] != DP_CONTROL || packet[1] != (seq_no + 1) % 256) {
+            fprintf(stderr, "The packet received is not in sequence\n");
             if (llclose(port_fd) == -1) {
                 fprintf(stderr, "Can't close port\n");
             }
@@ -98,14 +105,9 @@ int receive_file(char *out_file_path, char *out_file_name, int port) {
                 perror("Closing file");
             }
             return -1;
-        }
-        if (packet[0] == CP_CONTROL_END) {
-            break;
-        }
-        if (packet[0] != DP_CONTROL || packet[1] != (seq_no + 1) % 256) {
-            continue;
-        }
-        write(fd, packet[4], packet[2] * 256 + packet[3]);
+            ;
+        }*/
+        write(fd, &packet[4], packet[2] * 256 + packet[3]);
         seq_no++;
     }
     //  write...
