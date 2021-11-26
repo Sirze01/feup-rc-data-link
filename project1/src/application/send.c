@@ -5,15 +5,26 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-// #include "../protocol/data_link.h"
+#include "../protocol/data_link.h"
 #include "packet.h"
 #include "send.h"
 
-static int fd = -1;
-static char packet[4096];
+static char packet_file_name[PATH_MAX];
 
 int send_file(char *file_path, char *file_name, int port,
               int bytes_per_packet) {
+    if (strlen(file_name) < 2) {
+        char *base_name = strrchr(file_path, '/');
+        if (base_name != NULL) {
+            strncpy(packet_file_name, base_name, strlen(base_name) + 1);
+        } else {
+            strncpy(packet_file_name, file_path, strlen(file_path) + 1);
+        }
+    } else {
+        strncpy(packet_file_name, file_name, strlen(file_name) + 1);
+    }
+    int packet_file_name_len = strlen(packet_file_name);
+
     /* Retrieve file info */
     struct stat st;
     if (stat(file_path, &st) == -1) {
@@ -21,55 +32,95 @@ int send_file(char *file_path, char *file_name, int port,
         return -1;
     }
 
-    /* Open stream */
-    // llopen();
-
-    /* Send start packet */
-    if (strcmp(file_name, "") == 0) {
-        assemble_control_packet(packet, 0, 1, sizeof(int), (char *)&st.st_size);
-    } else {
-        int file_name_len = strlen(file_name);
-        assemble_control_packet(packet, 0, 2, sizeof(int), (char *)&st.st_size,
-                                file_name_len, (char *)file_name);
-    }
-    // llwrite();
-
     /* Open file for reading */
+    int fd = -1;
     fd = open(file_path, O_RDONLY);
     if (fd == -1) {
         perror("Open file");
         return -1;
     }
 
+    /* Open stream */
+    int port_fd = -1;
+    if ((port_fd = llopen(port, TRANSMITTER)) == -1) {
+        fprintf(stderr, "Can't open port\n");
+        if (close(fd) == -1) {
+            perror("Closing File");
+        }
+        return -1;
+    }
+
+    /* Send start packet */
+    char packet[4096];
+    int packet_size = -1;
+    packet_size = assemble_control_packet(
+        packet, 0, 2, CP_TYPE_SIZE, sizeof(int), (char *)&st.st_size,
+        CP_TYPE_FILENAME, packet_file_name_len, packet_file_name);
+
+    if (llwrite(port_fd, packet, packet_size) < packet_size) {
+        fprintf(stderr, "Failed writing start control packet\n");
+        if (llclose(port_fd) == -1) {
+            fprintf(stderr, "Failed closing port\n");
+        }
+        if (close(fd) == -1) {
+            perror("Closing file");
+        }
+        return -1;
+    }
+
     /* Send file to stream at given rate */
     char data[4096];
     unsigned seq_no = 0;
-    for (int i = 0; i < st.st_size; i += bytes_per_packet) {
-        if (read(fd, data, bytes_per_packet) != bytes_per_packet) {
+    int bytes_read = -1;
+    for (int i = 0; i < st.st_size; i += bytes_read) {
+        if ((bytes_read = read(fd, data, bytes_per_packet)) !=
+            bytes_per_packet) {
+            if (bytes_read < 0) {
+                perror("Reading from file");
+                fprintf(stderr,
+                        "Failed reading data from file for data packet %d\n",
+                        seq_no++);
+            }
             break;
         }
-        assemble_data_packet(packet, seq_no++, data, bytes_per_packet);
-        // llwrite();
+
+        packet_size = assemble_data_packet(packet, seq_no++, data, bytes_read);
+        if (llwrite(port_fd, packet, packet_size) < packet_size) {
+            fprintf(stderr, "Failed writing data packet %d\n", seq_no);
+            break;
+        }
     }
 
     /* Send end packet */
-    if (strcmp(file_name, "") == 0) {
-        assemble_control_packet(packet, 1, 1, sizeof(int), (char *)&st.st_size);
-    } else {
-        int file_name_len = strlen(file_name);
-        assemble_control_packet(packet, 1, 2, sizeof(int), (char *)&st.st_size,
-                                file_name_len, (char *)file_name);
-    }
-    // llwrite();
+    packet_size = assemble_control_packet(
+        packet, 1, 2, CP_TYPE_SIZE, sizeof(int), (char *)&st.st_size,
+        CP_TYPE_FILENAME, packet_file_name_len, packet_file_name);
 
-    /* Close file */
-    if (close(fd) == -1) {
-        perror("Close file");
+    if (llwrite(port_fd, packet, packet_size) < packet_size) {
+        printf("Failed writing end control packet\n");
+        if (llclose(port_fd) == -1) {
+            fprintf(stderr, "Failed closing port\n");
+        }
+        if (close(fd) == -1) {
+            perror("Close file");
+        }
         return -1;
     }
 
     /* Close stream */
-    // llclose();
+    if (llclose(port_fd) == -1) {
+        printf("Failed closing port\n");
+        if (close(fd) == -1) {
+            perror("Closing file");
+        }
+        return -1;
+    }
 
-    return -1;
+    /* Close file */
+    if (close(fd) == -1) {
+        perror("Closing file");
+        return -1;
+    }
+
+    return 0;
 }

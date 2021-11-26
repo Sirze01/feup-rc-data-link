@@ -14,7 +14,12 @@
         "frame.h": "c",
         "stdbool.h": "c",
         "fstream": "c",
-        "sstream": "c"
+        "sstream": "c",
+        "array": "c",
+        "hash_map": "c",
+        "string_view": "c",
+        "initializer_list": "c",
+        "utility": "c"
     },
     "cpplint.filters": [
         "-whitespace",

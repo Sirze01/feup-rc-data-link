@@ -94,10 +94,11 @@ int main(int argc, char **argv) {
             }
             break;
         case RECEIVER:
-
-            if (receive_file(file_path, port) != 0) {
-                printf("No file received\n");
-            }
+            /*
+                        if (receive_file(file_path, port) != 0) {
+                            printf("No file received\n");
+                        }
+                        */
             break;
     }
 
