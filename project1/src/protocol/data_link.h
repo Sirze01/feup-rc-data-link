@@ -2,6 +2,12 @@
 
 #include "frame.h"
 
+// enum role here
+// in frame should be an int
+
+// max data size here
+// remove max packet from app layer
+
 /**
  * @brief Open a data link on /dev/ttyS<port> with given role.
  *
