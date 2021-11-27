@@ -25,6 +25,14 @@ static device_role connection_role;
 static char in_frame[IF_FRAME_SIZE];
 static char out_frame[IF_FRAME_SIZE];
 
+static void print_bytes(char *buf, int size) {
+    printf("size: %d\n", size);
+    for (int i = 0; i < size; i++) {
+        printf("%x ", buf[i]);
+    }
+    printf("\n\n");
+}
+
 /**
  * @brief Restore previously changed serial port configuration and close file
  * descriptor.
@@ -93,6 +101,8 @@ static int read_validate_if(int fd, char addr, char cmd,
         }
     }
 
+    print_bytes(in_frame, frame_length);
+
     /* Validate header */
     char expected_if_header[4] = {F_FLAG, addr, cmd, addr ^ cmd};
     for (int i = 0; i < 4; i++) {
@@ -102,18 +112,20 @@ static int read_validate_if(int fd, char addr, char cmd,
     }
 
     /* Destuff data and validate BCC2 */
-    char bcc2 = in_frame[frame_length - 2];
-    int unstuffed_data_length = destuff_bytes(in_frame + 4, frame_length - 6);
-    if (unstuffed_data_length == -1) {
+    int unstuffed_frame_length = destuff_bytes(in_frame, frame_length);
+
+    print_bytes(in_frame, unstuffed_frame_length);
+    if (unstuffed_frame_length == -1) {
         return -1;
     }
-    if (byte_xor(in_frame + 4, unstuffed_data_length) != bcc2) {
+    char bcc2 = in_frame[unstuffed_frame_length - 2];
+    if (byte_xor(in_frame + 4, unstuffed_frame_length - 6) != bcc2) {
         return -2;
     }
 
     /* Copy data to output buffer */
-    memcpy(out_data_buffer, in_frame + 4, unstuffed_data_length);
-    return unstuffed_data_length;
+    memcpy(out_data_buffer, in_frame + 4, unstuffed_frame_length - 6);
+    return unstuffed_frame_length - 6;
 }
 
 int llopen(int port, device_role role) {
@@ -193,14 +205,10 @@ int llopen(int port, device_role role) {
 int llclose(int fd) {
     for (;;) {
         if (connection_role == TRANSMITTER) {
-            /*             printf("vou dar assemble ao disc\n"); */
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_DISC);
             write(fd, out_frame, SUF_FRAME_SIZE);
-            /*             printf("escrevi disconnect\n"); */
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_DISC) == -1) {
-                /*                 printf("nao consegui ler um disconnect\n");
-                 */
                 sleep_continue;
             }
             printf("li disconnect\n");
@@ -210,8 +218,6 @@ int llclose(int fd) {
         } else {
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_DISC) == -1) {
-                /*                 printf("nao consegui ler um disconnect e vou
-                 * tentar de novo\n"); */
                 sleep_continue;
             }
             printf("li disconnect\n");
@@ -220,8 +226,6 @@ int llclose(int fd) {
             printf("mandei disconnect\n");
             while (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                      SUF_CONTROL_UA) == -1) {
-                /*                 printf("nao consegui ler um ua e vou tentar
-                 * de novo\n"); */
                 sleep_continue;
             }
         }
@@ -249,6 +253,9 @@ int llwrite(int fd, char *buffer, int length) {
     int next_frame_number = NEXT_FRAME_NUMBER(curr_frame_number);
     int frame_length = assemble_iframe(
         out_frame, TRANSMITTER, IF_CONTROL(curr_frame_number), buffer, length);
+
+    print_bytes(out_frame, frame_length);
+
     for (int tries = 0; tries < CONNECTION_MAX_RETRIES; tries++) {
         write(fd, out_frame, frame_length);
         if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
