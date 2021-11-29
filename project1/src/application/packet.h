@@ -1,8 +1,5 @@
 #pragma once
 
-#define MAX_PACKET_SIZE 4092
-#define MAX_DATA_PER_PACKET_SIZE 4088
-
 /* CONTROL PACKET */
 #define CP_CONTROL_START 2
 #define CP_CONTROL_END 3

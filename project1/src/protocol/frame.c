@@ -69,7 +69,7 @@ int destuff_bytes(char *frame, int frame_size) {
     return new_size;
 }
 
-void assemble_suframe(char *out_frame, device_role role, char ctr) {
+void assemble_suframe(char *out_frame, int role, char ctr) {
 
     out_frame[0] = F_FLAG;
     out_frame[1] = role == 0 ? F_ADDRESS_TRANSMITTER_COMMANDS
@@ -82,8 +82,8 @@ void assemble_suframe(char *out_frame, device_role role, char ctr) {
     out_frame[4] = F_FLAG;
 }
 
-int assemble_iframe(char *out_frame, device_role role, char ctr,
-                    char *unstuffed_data, int unstuffed_data_size) {
+int assemble_iframe(char *out_frame, int role, char ctr, char *unstuffed_data,
+                    int unstuffed_data_size) {
     out_frame[0] = F_FLAG;
     out_frame[1] = role == 0 ? F_ADDRESS_TRANSMITTER_COMMANDS
                              : F_ADDRESS_RECEIVER_COMMANDS;

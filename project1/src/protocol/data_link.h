@@ -2,11 +2,10 @@
 
 #include "frame.h"
 
-// enum role here
-// in frame should be an int
+typedef enum device_role { TRANSMITTER, RECEIVER } device_role;
 
-// max data size here
-// remove max packet from app layer
+#define MAX_PACKET_SIZE 4092
+#define MAX_DATA_PER_PACKET_SIZE 4088
 
 /**
  * @brief Open a data link on /dev/ttyS<port> with given role.

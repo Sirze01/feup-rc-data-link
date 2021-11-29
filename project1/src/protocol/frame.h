@@ -25,13 +25,11 @@
 #define IF_MAX_DATA_SIZE 4092
 #define IF_CONTROL(no_seq) (no_seq << 6)
 
-typedef enum device_role { TRANSMITTER, RECEIVER } device_role;
-
 /* Frame related functions */
 char byte_xor(char *data, int size);
 int stuff_bytes(char *frame, int frame_size);
 int destuff_bytes(char *frame, int frame_size);
-void assemble_suframe(char *out_frame, device_role role, char ctr);
-int assemble_iframe(char *out_frame, device_role role, char ctr,
-                    char *unstuffed_data, int unstuffed_data_size);
+void assemble_suframe(char *out_frame, int role, char ctr);
+int assemble_iframe(char *out_frame, int role, char ctr, char *unstuffed_data,
+                    int unstuffed_data_size);
 int read_frame(char *out_frame, int max_frame_size, int fd);
