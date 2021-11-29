@@ -17,5 +17,4 @@
 int assemble_data_packet(char *out_packet, int seq_no, char *data,
                          unsigned data_size);
 int assemble_control_packet(char *out_packet, int end, int file_size,
-                            int bytes_per_packet, char *file_name,
-                            int file_name_length);
+                            int bytes_per_packet, char *file_name);

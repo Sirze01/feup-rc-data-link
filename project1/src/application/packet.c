@@ -14,8 +14,7 @@ int assemble_data_packet(char *out_packet, int seq_no, char *data,
 }
 
 int assemble_control_packet(char *out_packet, int end, int file_size,
-                            int bytes_per_packet, char *file_name,
-                            int file_name_length) {
+                            int bytes_per_packet, char *file_name) {
     out_packet[0] = end ? CP_CONTROL_END : CP_CONTROL_START;
 
     int curr_byte = 1;
@@ -26,10 +25,11 @@ int assemble_control_packet(char *out_packet, int end, int file_size,
     curr_byte += sizeof(int);
 
     /* File name */
+    int file_name_length = strlen(file_name);
     out_packet[curr_byte++] = CP_TYPE_FILENAME;
     memcpy(out_packet + curr_byte, &file_name_length, sizeof(int));
     curr_byte += sizeof(int);
-    memcpy(out_packet + curr_byte, file_name, file_name_length);
+    strncpy(out_packet + curr_byte, file_name, file_name_length);
     curr_byte += file_name_length;
 
     /* Max bytes sent per packet */

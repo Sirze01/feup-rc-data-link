@@ -18,33 +18,32 @@ static char file_pathname[PATH_MAX];
 int validate_start_packet(int *file_size, int *bytes_per_packet,
                           char *packet_file_name,
                           int *packet_file_name_length) {
-    if (packet[0] == CP_CONTROL_START) {
-        for (int i = 1, arg = 0; arg < 3; arg++) {
-            switch (packet[i]) {
-                case CP_TYPE_SIZE:
-                    memcpy(file_size, packet + i + 2, packet[i + 1]);
-                    i += (2 + packet[i + 1]);
-                    break;
-                case CP_TYPE_FILENAME:
-                    memcpy(packet_file_name_length, packet + i + 1,
-                           sizeof(int));
-                    i += (1 + sizeof(int));
-                    memcpy(packet_file_name, packet + i,
-                           *packet_file_name_length);
-                    i += *packet_file_name_length;
-                    break;
-                case CP_TYPE_BYTES_PER_PACKET:
-                    memcpy(bytes_per_packet, packet + i + 2, packet[i + 1]);
-                    i += (2 + packet[i + 1]);
-                    break;
-                default:
-                    fprintf(stderr, "Unsuported parameter type\n");
-                    return -1;
-            }
-        }
-        return 0;
+    if (packet[0] != CP_CONTROL_START) {
+        return -1;
     }
-    return -1;
+
+    for (int i = 1, arg = 0; arg < 3; arg++) {
+        switch (packet[i]) {
+            case CP_TYPE_SIZE:
+                memcpy(file_size, packet + i + 2, packet[i + 1]);
+                i += (2 + packet[i + 1]);
+                break;
+            case CP_TYPE_FILENAME:
+                memcpy(packet_file_name_length, packet + i + 1, sizeof(int));
+                i += (1 + sizeof(int));
+                memcpy(packet_file_name, packet + i, *packet_file_name_length);
+                i += *packet_file_name_length;
+                break;
+            case CP_TYPE_BYTES_PER_PACKET:
+                memcpy(bytes_per_packet, packet + i + 2, packet[i + 1]);
+                i += (2 + packet[i + 1]);
+                break;
+            default:
+                fprintf(stderr, "Unsuported parameter type\n");
+                return -1;
+        }
+    }
+    return 0;
 }
 
 void parse_new_pathname(char *out_file_name, char *out_file_path,
@@ -111,7 +110,7 @@ int validate_end_packet(int file_size, int bytes_per_packet,
     return -1;
 }
 
-int receive_file(char *out_file_path, char *out_file_name, int port) {
+int receive_file(char *out_file_dir, char *out_file_name, int port) {
     /* Open stream */
     int port_fd;
     if ((port_fd = llopen(port, RECEIVER)) == -1) {
@@ -141,7 +140,7 @@ int receive_file(char *out_file_path, char *out_file_name, int port) {
         return -1;
     }
 
-    parse_new_pathname(out_file_name, out_file_path, packet_file_name,
+    parse_new_pathname(out_file_name, out_file_dir, packet_file_name,
                        packet_file_name_length);
 
     /* (Creating&)Opening file (truncated) to write received data */

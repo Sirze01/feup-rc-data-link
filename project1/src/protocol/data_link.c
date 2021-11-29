@@ -251,7 +251,7 @@ int llwrite(int fd, char *buffer, int length) {
             sleep_continue;
         }
         curr_frame_number = next_frame_number;
-        return frame_length - 6;
+        return frame_length;
     }
     return -1;
 }
