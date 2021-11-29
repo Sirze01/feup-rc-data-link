@@ -17,8 +17,13 @@
 #define PATH_MAX 4096
 #define DEFAULT_BYTES_PER_PACKET 100
 
-// annonymous struct
-bool option_flags[] = {false, false, false, false, false};
+static struct {
+    bool port;
+    bool role_path;
+    bool name;
+    bool bytes_per_packet;
+    bool verbose;
+} options = {false, false, false, false, false};
 
 // BESIDES DE PROGRESS BAR, CAN WE PUT "RECEIVING X... RECEIVED X REALLY
 // BEAUTIFULLY?" IF ALL FUNCTIONING WELL REMOVE DEBUG PRINTS BJ
@@ -28,14 +33,6 @@ int bytes_per_packet = -1;
 static char file_path[PATH_MAX] = "";
 static char file_name[PATH_MAX] = "";
 static device_role role;
-
-/* static void print_bytes(char *buf, int size) {
-    printf("size: %d\n", size);
-    for (int i = 0; i < size; i++) {
-        printf("%x ", buf[i]);
-    }
-    printf("\n\n");
-} */
 
 static void print_usage(char **argv) {
     printf("Usage: %s -p <port> -s|-r <filepath> [-n filename] [-b "
@@ -55,7 +52,7 @@ void parse_options(int argc, char **argv) {
                     perror("Port must be a valid number\n");
                     exit(-1);
                 }
-                option_flags[0] = true;
+                options.port = true;
                 break;
             case 's':
             case 'r':
@@ -66,11 +63,11 @@ void parse_options(int argc, char **argv) {
                 got_role = true;
                 strncpy(file_path, optarg, PATH_MAX);
                 role = opt == 's' ? TRANSMITTER : RECEIVER;
-                option_flags[1] = true;
+                options.role_path = true;
                 break;
             case 'n':
                 strncpy(file_name, optarg, PATH_MAX);
-                option_flags[2] = true;
+                options.name = true;
                 break;
             case 'b':
                 errno = 0;
@@ -79,10 +76,10 @@ void parse_options(int argc, char **argv) {
                     perror("Bytes per packet must be a valid number\n");
                     exit(-1);
                 }
-                option_flags[3] = true;
+                options.bytes_per_packet = true;
                 break;
             case 'v':
-                option_flags[4] = true;
+                options.verbose = true;
                 break;
             case ':':
             case '?':
@@ -95,47 +92,52 @@ void parse_options(int argc, char **argv) {
 }
 
 int assert_valid_options() {
-    if (!option_flags[0]) {
-        if (option_flags[4]) {
+    if (!options.port) {
+        if (options.verbose) {
             fprintf(stderr, "Undefined port number\n");
         }
         return -1;
     }
 
-    if (!option_flags[1]) {
-        if (option_flags[4]) {
+    if (!options.role_path) {
+        if (options.verbose) {
             fprintf(stderr, "No role file path pair provided\n");
         }
         return -1;
     }
 
     if (strlen(file_path) == 0) {
-        if (option_flags[4]) {
+        if (options.verbose) {
             fprintf(stderr, "Empty file path %s\n", file_path);
         }
         return -1;
     }
 
     if (role == TRANSMITTER) {
-        if (option_flags[3]) {
+        if (options.bytes_per_packet) {
             if (bytes_per_packet <= 0 ||
                 bytes_per_packet > MAX_DATA_PER_PACKET_SIZE) {
-                if (option_flags[4]) {
+                if (options.verbose) {
                     fprintf(stderr, "Invalid bytes per packet\n");
                 }
                 return -1;
             }
         } else {
             bytes_per_packet = DEFAULT_BYTES_PER_PACKET;
-            if (option_flags[4]) {
+            if (options.verbose) {
                 printf(
                     "No bytes per packet value given, using default size %d\n",
                     DEFAULT_BYTES_PER_PACKET);
             }
         }
+    } else {
+        if (options.bytes_per_packet) {
+            fprintf(
+                stderr,
+                "Application can't specify bytes per packet when receiving.\n");
+            return -1;
+        }
     }
-
-    // if receiver specifies bytes_per_packet, raise error
 
     return 0;
 }
@@ -147,14 +149,14 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    if (option_flags[4]) {
+    if (options.verbose) {
         printf("port: %d, role: %d, filepath: %s, filename: %s", port, role,
                file_path, file_name);
     }
 
     switch (role) {
         case TRANSMITTER:
-            if (option_flags[4]) {
+            if (options.verbose) {
                 printf(", bytesperpacket: %d\n", bytes_per_packet);
             }
             if (send_file(file_path, file_name, port, bytes_per_packet) != 0) {
@@ -163,7 +165,7 @@ int main(int argc, char **argv) {
             }
             break;
         case RECEIVER:
-            if (option_flags[4]) {
+            if (options.verbose) {
                 printf("\n");
             }
 
