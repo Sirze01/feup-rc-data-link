@@ -252,14 +252,14 @@ int llwrite(int fd, char *buffer, int length) {
         out_frame, TRANSMITTER, IF_CONTROL(curr_frame_number), buffer, length);
 
     for (int tries = 0; tries < CONNECTION_MAX_RETRIES; tries++) {
-        write(fd, out_frame, frame_length);
+        write(fd, out_frame, frame_length); // sleep_continue on -1
         if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                               SUF_CONTROL_RR(next_frame_number)) != 0) {
             printf("queria ler um rr e nao li. vou tentar de novo\n");
             sleep_continue;
         }
         curr_frame_number = next_frame_number;
-        return frame_length - 6;
+        return frame_length - 6; // review lens...
     }
     return -1;
 }

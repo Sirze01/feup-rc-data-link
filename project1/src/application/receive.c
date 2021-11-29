@@ -9,10 +9,12 @@
 
 #define DEFAULT_OUT_FILE_NAME "out_file"
 
-static char packet[4096];
+static char packet[MAX_PACKET_SIZE];
 static int packet_length = -1;
 static char file_name[PATH_MAX];
 static char file_path[PATH_MAX];
+
+// can we use atexit?
 
 int receive_file(char *out_file_path, char *out_file_name, int port) {
     /* Open stream */
@@ -34,6 +36,8 @@ int receive_file(char *out_file_path, char *out_file_name, int port) {
         return -1;
     }
 
+    // can we validate packet in another function?
+    // arg++ inside the for header
     if (packet[0] == CP_CONTROL_START) {
         for (int i = 1, arg = 0; arg < 3;) {
             switch (packet[i]) {
@@ -70,6 +74,7 @@ int receive_file(char *out_file_path, char *out_file_name, int port) {
         return -1;
     }
 
+    // one more validate
     if (strlen(out_file_name) < 2) {
         if (strlen(file_name) < 2) {
             strncpy(file_name, DEFAULT_OUT_FILE_NAME,
@@ -81,6 +86,8 @@ int receive_file(char *out_file_path, char *out_file_name, int port) {
 
     snprintf(file_path, PATH_MAX, "%s/%s", out_file_path, file_name);
     int fd = -1;
+    // try without the last flags
+    // comment you are opening
     if ((fd = open(file_path, O_WRONLY | O_CREAT | O_TRUNC,
                    S_IRWXU | S_IRWXG | S_IRWXO)) == -1) {
         fprintf(stderr, "Can't create file %s in path %s\n", file_name,
@@ -99,7 +106,8 @@ int receive_file(char *out_file_path, char *out_file_name, int port) {
             fprintf(stderr, "The packet received is corrupted\n");
             continue;
         }
-        if (packet[0] == CP_CONTROL_END) {
+        if (packet[0] ==
+            CP_CONTROL_END) { // CRL JOSE DEIXA DE SER ROTO SIM CLARO
             break;
         }
 
@@ -108,6 +116,7 @@ int receive_file(char *out_file_path, char *out_file_name, int port) {
     }
     //  write...
 
+    // VALIDATE END....
     /* Read close control packet */
     // read...
 

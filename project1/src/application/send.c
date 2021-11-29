@@ -20,6 +20,7 @@ static void print_bytes(char *buf, int size) {
 
 int send_file(char *file_path, char *file_name, int port,
               int bytes_per_packet) {
+    // comment to explain
     if (strlen(file_name) < 2) {
         char *base_name = strrchr(file_path, '/');
         if (base_name != NULL) {
@@ -57,6 +58,9 @@ int send_file(char *file_path, char *file_name, int port,
         return -1;
     }
 
+    /* Convert to 3 static functions */
+    /* globals might be needed */
+
     /* Send start packet */
     char packet[MAX_PACKET_SIZE];
     int packet_size = -1;
@@ -75,10 +79,12 @@ int send_file(char *file_path, char *file_name, int port,
     }
 
     /* Send file to stream at given rate */
+    // integrate with progress bar?
     char data[MAX_DATA_PER_PACKET_SIZE];
-    unsigned seq_no = 0;
+    unsigned seq_no = 0; // convert to int; module instead of ++
     int bytes_read = -1;
     for (int i = 0; i < st.st_size; i += bytes_read) {
+        // what is this check? -1
         if ((bytes_read = read(fd, data, bytes_per_packet)) !=
             bytes_per_packet) {
             if (bytes_read < 0) {

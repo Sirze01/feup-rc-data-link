@@ -17,7 +17,11 @@
 #define PATH_MAX 4096
 #define DEFAULT_BYTES_PER_PACKET 100
 
+// annonymous struct
 bool option_flags[] = {false, false, false, false, false};
+
+// BESIDES DE PROGRESS BAR, CAN WE PUT "RECEIVING X... RECEIVED X REALLY
+// BEAUTIFULLY?" IF ALL FUNCTIONING WELL REMOVE DEBUG PRINTS BJ
 
 static int port = -1;
 int bytes_per_packet = -1;
@@ -131,6 +135,8 @@ int assert_valid_options() {
         }
     }
 
+    // if receiver specifies bytes_per_packet, raise error
+
     return 0;
 }
 
@@ -170,10 +176,3 @@ int main(int argc, char **argv) {
 
     return 0;
 }
-
-/*
-# Known Bugs
-    Fails if transmitter launched first
-    Penguin is missing bytes
-
-*/
