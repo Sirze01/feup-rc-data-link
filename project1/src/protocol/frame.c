@@ -99,8 +99,6 @@ int assemble_iframe(char *out_frame, device_role role, char ctr,
     out_frame[4 + unstuffed_data_size] = bcc;
     out_frame[5 + unstuffed_data_size] = F_FLAG;
 
-    printf("bcc og %x", bcc);
-
     int stuffed_frame_size = stuff_bytes(out_frame, 6 + unstuffed_data_size);
     return stuffed_frame_size;
 }

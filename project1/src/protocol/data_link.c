@@ -101,8 +101,6 @@ static int read_validate_if(int fd, char addr, char cmd,
         }
     }
 
-    print_bytes(in_frame, frame_length);
-
     /* Validate header */
     char expected_if_header[4] = {F_FLAG, addr, cmd, addr ^ cmd};
     for (int i = 0; i < 4; i++) {
@@ -114,7 +112,6 @@ static int read_validate_if(int fd, char addr, char cmd,
     /* Destuff data and validate BCC2 */
     int unstuffed_frame_length = destuff_bytes(in_frame, frame_length);
 
-    print_bytes(in_frame, unstuffed_frame_length);
     if (unstuffed_frame_length == -1) {
         return -1;
     }
@@ -253,8 +250,6 @@ int llwrite(int fd, char *buffer, int length) {
     int next_frame_number = NEXT_FRAME_NUMBER(curr_frame_number);
     int frame_length = assemble_iframe(
         out_frame, TRANSMITTER, IF_CONTROL(curr_frame_number), buffer, length);
-
-    print_bytes(out_frame, frame_length);
 
     for (int tries = 0; tries < CONNECTION_MAX_RETRIES; tries++) {
         write(fd, out_frame, frame_length);
