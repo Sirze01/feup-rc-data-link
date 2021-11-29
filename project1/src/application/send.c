@@ -46,7 +46,7 @@ static int send_file_data(int bytes_per_packet) {
     char data[MAX_DATA_PER_PACKET_SIZE];
     int bytes_read = -1;
     for (int i = 0, seq_no = 0; i < st.st_size;
-         i += bytes_read, seq_no = (seq_no + 1) % 200) {
+         i += bytes_read, seq_no = (seq_no + 1) % 10000) {
         if ((bytes_read = read(file_fd, data, bytes_per_packet)) < 0) {
             perror("Reading from file");
             fprintf(stderr,
@@ -90,7 +90,7 @@ int send_file(char *file_path, char *file_name, int port,
      * file_name (basename if it finds one before the first '/', the file path
      * otherwise.
      */
-    char packet_file_name[PATH_MAX];
+    char packet_file_name[MAX_FILENAME_LENGTH];
     int packet_file_name_length = -1;
     if (strlen(file_name) == 0) {
         char *base_name = strrchr(file_path, '/');

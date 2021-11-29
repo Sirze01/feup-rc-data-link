@@ -1,5 +1,8 @@
 #pragma once
 
+#define MAX_FILENAME_LENGTH 1024
+#define MAX_FILE_PATH_LENGTH 3072
+
 /* CONTROL PACKET */
 #define CP_CONTROL_START 2
 #define CP_CONTROL_END 3

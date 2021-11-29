@@ -30,8 +30,8 @@ static struct {
 
 static int port = -1;
 int bytes_per_packet = -1;
+static char file_name[MAX_FILENAME_LENGTH] = "";
 static char file_path[PATH_MAX] = "";
-static char file_name[PATH_MAX] = "";
 static device_role role;
 
 static void print_usage(char **argv) {
