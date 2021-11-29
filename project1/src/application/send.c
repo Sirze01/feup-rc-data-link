@@ -9,10 +9,10 @@
 #include "packet.h"
 #include "send.h"
 
-static struct stat st;
-
 static char packet[MAX_PACKET_SIZE];
-
+static char file_name[PATH_MAX];
+static char file_path[PATH_MAX];
+static int file_size = -1;
 static int fd = -1;
 static int port_fd = -1;
 
@@ -24,17 +24,16 @@ static int port_fd = -1;
     printf("\n\n");
 }*/
 
-static void parse_file_name(char *out_file_name, char *file_name,
-                            char *file_path) {
+static void assemble_packet_file_name(char *packet_file_name) {
     if (strlen(file_name) == 0) {
         char *last_name = strrchr(file_path, '/');
         if (last_name != NULL) {
-            strncpy(out_file_name, last_name, strlen(last_name) + 1);
+            strncpy(packet_file_name, last_name + 1, strlen(last_name + 1) + 1);
         } else {
-            strncpy(out_file_name, file_path, strlen(file_path) + 1);
+            strncpy(packet_file_name, file_path, strlen(file_path) + 1);
         }
     } else {
-        strncpy(out_file_name, file_name, strlen(file_name) + 1);
+        strncpy(packet_file_name, file_name, strlen(file_name) + 1);
     }
 }
 
@@ -53,7 +52,7 @@ static void close_stream() {
 static int send_control_packet(int bytes_per_packet, char *packet_file_name,
                                int is_end) {
     int packet_size = assemble_control_packet(
-        packet, is_end, st.st_size, bytes_per_packet, packet_file_name);
+        packet, is_end, file_size, bytes_per_packet, packet_file_name);
     if (llwrite(port_fd, packet, packet_size) < packet_size) {
         return -1;
     }
@@ -63,7 +62,7 @@ static int send_control_packet(int bytes_per_packet, char *packet_file_name,
 static int send_file_data(int bytes_per_packet) {
     char data[MAX_DATA_PER_PACKET_SIZE];
     int bytes_read = -1, seq_no = 0, packet_size = 0;
-    for (int i = 0; i < st.st_size; i += bytes_read) {
+    for (int i = 0; i < file_size; i += bytes_read) {
         if ((bytes_read = read(fd, data, bytes_per_packet)) < 0) {
             fprintf(stderr,
                     "Failed reading data from file for data packet %d\n",
@@ -81,14 +80,18 @@ static int send_file_data(int bytes_per_packet) {
     return 0;
 }
 
-int send_file(char *file_path, char *file_name, int port,
-              int bytes_per_packet) {
+int send_file(char *fpath, char *fname, int port, int bytes_per_packet) {
+    /* Copy to local buffers */
+    strncpy(file_path, fpath, PATH_MAX);
+    strncpy(file_name, fname, PATH_MAX);
 
     /* Retrieve file info */
+    struct stat st;
     if (stat(file_path, &st) == -1) {
         perror("Retrieve file info");
         return -1;
     }
+    file_size = st.st_size;
 
     /* Open file for reading */
     fd = open(file_path, O_RDONLY);
@@ -107,7 +110,7 @@ int send_file(char *file_path, char *file_name, int port,
 
     /* Send start packet */
     char packet_file_name[MAX_FILENAME_LENGTH];
-    parse_file_name(packet_file_name, file_name, file_path);
+    assemble_packet_file_name(packet_file_name);
     if (send_control_packet(bytes_per_packet, packet_file_name, 0) == -1) {
         fprintf(stderr, "Failed writing control packet\n");
         return -1;

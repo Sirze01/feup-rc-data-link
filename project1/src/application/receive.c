@@ -13,7 +13,7 @@ static char packet[MAX_PACKET_SIZE];
 static int packet_length = -1;
 static char file_pathname[PATH_MAX];
 
-// can we use atexit?
+// can we use atexit? yes bro
 
 int validate_start_packet(int *file_size, int *bytes_per_packet,
                           char *packet_file_name,
