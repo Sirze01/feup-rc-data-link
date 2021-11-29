@@ -25,14 +25,6 @@ static device_role connection_role;
 static char in_frame[IF_FRAME_SIZE];
 static char out_frame[IF_FRAME_SIZE];
 
-static void print_bytes(char *buf, int size) {
-    printf("size: %d\n", size);
-    for (int i = 0; i < size; i++) {
-        printf("%x ", buf[i]);
-    }
-    printf("\n\n");
-}
-
 /**
  * @brief Restore previously changed serial port configuration and close file
  * descriptor.

@@ -75,8 +75,8 @@ int receive_file(char *out_file_path, char *out_file_name, int port) {
     }
 
     // one more validate
-    if (strlen(out_file_name) < 2) {
-        if (strlen(file_name) < 2) {
+    if (strlen(out_file_name) == 0) {
+        if (strlen(file_name) == 0) {
             strncpy(file_name, DEFAULT_OUT_FILE_NAME,
                     strlen(DEFAULT_OUT_FILE_NAME) + 1);
         }
@@ -99,9 +99,8 @@ int receive_file(char *out_file_path, char *out_file_name, int port) {
     }
 
     /* Read from stream and write to file */
-    int seq_no = 0;
-    int bytes_read = 0;
-    for (;;) {
+    int bytes_read = -1;
+    for (int seq_no = 0;; seq_no = (seq_no + 1) % 200) {
         if ((bytes_read = llread(port_fd, packet)) == -1) {
             fprintf(stderr, "The packet received is corrupted\n");
             continue;
@@ -112,7 +111,6 @@ int receive_file(char *out_file_path, char *out_file_name, int port) {
         }
 
         write(fd, &packet[4], packet[2] * 256 + packet[3]);
-        seq_no++;
     }
     //  write...
 
