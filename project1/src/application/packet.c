@@ -6,7 +6,6 @@
 int assemble_data_packet(unsigned char *out_packet, unsigned char seq_no,
                          unsigned char *data, unsigned data_size) {
     out_packet[0] = DP_CONTROL;
-    /*     printf("seq no: %u\n", seq_no); */
     out_packet[1] = DP_SEQ_NO(seq_no);
     out_packet[2] = data_size / 256;
     out_packet[3] = data_size % 256;

@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,6 +58,10 @@ int send_file(int port) {
     struct stat st;
     if (stat(file_path, &st) == -1) {
         perror("Get file info");
+        return -1;
+    }
+    if (st.st_size > UINT_MAX) {
+        fprintf(stderr, "File size is too large\n");
         return -1;
     }
 
