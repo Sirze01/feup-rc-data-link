@@ -257,11 +257,6 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    if (options.verbose) {
-        printf("port: %d, role: %d, filepath: %s, filename: %s", port, role,
-               file_path, file_name);
-    }
-
     switch (role) {
         case TRANSMITTER:
             if (send_file(port) != 0) {

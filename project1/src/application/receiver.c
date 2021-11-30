@@ -54,6 +54,7 @@ int read_validate_start_packet(int port_fd, char *out_file_name) {
 int write_file_from_stream(int port_fd, int fd) {
     unsigned curr_file_size = 0;
     unsigned char seq_no = 0;
+    printf("\n");
     for (;;) {
         if (llread(port_fd, packet) < 0) {
             fprintf(stderr, "Failed reading file at offset %u\n",
@@ -76,13 +77,13 @@ int write_file_from_stream(int port_fd, int fd) {
             return -1;
         }
         curr_file_size += no_bytes;
-        print_progress_bar(curr_file_size, file_size, 0);
+        print_progress_bar(curr_file_size, file_size);
         if (curr_file_size >= file_size) {
             break;
         }
         seq_no++;
     }
-
+    printf("\n\n");
     return 0;
 }
 

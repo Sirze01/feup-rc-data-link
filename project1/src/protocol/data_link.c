@@ -32,8 +32,12 @@ static unsigned char out_frame[IF_FRAME_SIZE];
  * @param fd serial port file descriptor
  */
 static void restore_close_port(int fd) {
-    tcsetattr(fd, TCSADRAIN, &oldtio);
-    close(fd);
+    if (tcsetattr(fd, TCSADRAIN, &oldtio) == -1) {
+        perror("Set termios attributes");
+    }
+    if (close(fd) == -1) {
+        perror("Close stream fd");
+    }
 }
 
 /**
@@ -128,11 +132,13 @@ int llopen(int port, device_role role) {
     /* Open port */
     int fd = open(port_path, O_RDWR | O_NOCTTY);
     if (fd == -1) {
+        perror("Open stream");
         return -1;
     }
 
     /* Save current port configuration for later restoration */
     if (tcgetattr(fd, &oldtio) == -1) {
+        perror("Get termios attributes");
         return -1;
     }
 
@@ -146,6 +152,7 @@ int llopen(int port, device_role role) {
     newtio.c_cc[VMIN] = 0; /* Do not block waiting for characters */
     if ((tcflush(fd, TCIOFLUSH) == -1) |
         (tcsetattr(fd, TCSANOW, &newtio) == -1)) {
+        perror("Set termios attributes");
         restore_close_port(fd);
         return -1;
     }
@@ -186,20 +193,26 @@ int llclose(int fd) {
     for (;;) {
         if (connection_role == TRANSMITTER) {
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_DISC);
-            write(fd, out_frame, SUF_FRAME_SIZE);
+            if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
+                perror("Write suframe");
+            }
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_DISC) == -1) {
                 sleep_continue;
             }
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_UA);
-            write(fd, out_frame, SUF_FRAME_SIZE);
+            if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
+                perror("Write suframe");
+            }
         } else {
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_DISC) == -1) {
                 sleep_continue;
             }
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_DISC);
-            write(fd, out_frame, SUF_FRAME_SIZE);
+            if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
+                perror("Write suframe");
+            }
             while (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                      SUF_CONTROL_UA) == -1) {
                 sleep_continue;
@@ -226,7 +239,9 @@ int llwrite(int fd, unsigned char *buffer, int length) {
         out_frame, TRANSMITTER, IF_CONTROL(curr_frame_number), buffer, length);
 
     for (int tries = 0; tries < CONNECTION_MAX_RETRIES; tries++) {
-        write(fd, out_frame, frame_length);
+        if (write(fd, out_frame, frame_length) == -1) {
+            perror("Write iframe");
+        }
         if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                               SUF_CONTROL_RR(next_frame_number)) != 0) {
             sleep_continue;
@@ -252,12 +267,16 @@ int llread(int fd, unsigned char *buffer) {
         } else if (c == -2) {
             assemble_suframe(out_frame, TRANSMITTER,
                              SUF_CONTROL_REJ(curr_frame_number));
-            write(fd, out_frame, SUF_FRAME_SIZE);
+            if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
+                perror("Write suframe");
+            }
             sleep_continue;
         } else {
             assemble_suframe(out_frame, TRANSMITTER,
                              SUF_CONTROL_RR(next_frame_number));
-            write(fd, out_frame, SUF_FRAME_SIZE);
+            if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
+                perror("Write suframe");
+            }
             curr_frame_number = next_frame_number;
             return c;
         }
