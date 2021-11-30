@@ -27,7 +27,8 @@
         "stdio.h": "c",
         "send.h": "c",
         "fcntl.h": "c",
-        "receive.h": "c"
+        "receive.h": "c",
+        "*.tcc": "c"
     },
     "cpplint.filters": [
         "-whitespace",

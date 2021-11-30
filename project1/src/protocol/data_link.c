@@ -15,8 +15,8 @@
 
 /* Protocol settings */
 #define BAUDRATE B38400
-#define CONNECTION_TIMEOUT_TS 5
-#define CONNECTION_MAX_RETRIES 5
+#define CONNECTION_TIMEOUT_TS 3
+#define CONNECTION_MAX_RETRIES 3
 #define NEXT_FRAME_NUMBER(curr) (curr + 1) % 2
 
 /* Buffers */
@@ -46,7 +46,6 @@ static void restore_close_port(int fd) {
  * @return -1 on success, 0 otherwise
  */
 static int read_validate_suf(int fd, char addr, char cmd) {
-    /*     printf("trying to read suf\n"); */
     /* Read frame */
     for (int i = 0;; i++) {
         if (i == CONNECTION_MAX_RETRIES) {
@@ -164,25 +163,21 @@ int llopen(int port, device_role role) {
                 perror("Write suframe");
                 sleep_continue;
             }
-            printf("transmitter sent set\n");
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_UA) == -1) {
                 sleep_continue;
             }
-            printf("transmitter read ua\n");
             return fd;
         } else {
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_SET) == -1) {
                 sleep_continue;
             }
-            printf("receiver read set\n");
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_UA);
             if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
                 perror("Write suframe");
                 sleep_continue;
             }
-            printf("receiver sent ua\n");
             return fd;
         }
     }
@@ -200,19 +195,15 @@ int llclose(int fd) {
                                   SUF_CONTROL_DISC) == -1) {
                 sleep_continue;
             }
-            printf("li disconnect\n");
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_UA);
             write(fd, out_frame, SUF_FRAME_SIZE);
-            printf("mandei ua\n");
         } else {
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_DISC) == -1) {
                 sleep_continue;
             }
-            printf("li disconnect\n");
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_DISC);
             write(fd, out_frame, SUF_FRAME_SIZE);
-            printf("mandei disconnect\n");
             while (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                      SUF_CONTROL_UA) == -1) {
                 sleep_continue;
@@ -247,11 +238,10 @@ int llwrite(int fd, char *buffer, int length) {
         write(fd, out_frame, frame_length);
         if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                               SUF_CONTROL_RR(next_frame_number)) != 0) {
-            printf("queria ler um rr e nao li. vou tentar de novo\n");
             sleep_continue;
         }
         curr_frame_number = next_frame_number;
-        return frame_length;
+        return length;
     }
     return -1;
 }

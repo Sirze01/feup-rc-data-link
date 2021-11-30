@@ -8,14 +8,15 @@
 #include <string.h>
 #include <strings.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "../protocol/data_link.h"
-#include "packet.h"
-#include "receive.h"
-#include "send.h"
+#include "receiver.h"
+#include "sender.h"
 
 #define PATH_MAX 4096
 #define DEFAULT_BYTES_PER_PACKET 100
+#define MAX_SEQ_NO 10000
 
 static struct {
     bool port;
@@ -25,14 +26,108 @@ static struct {
     bool verbose;
 } options = {false, false, false, false, false};
 
-// BESIDES DE PROGRESS BAR, CAN WE PUT "RECEIVING X... RECEIVED X REALLY
-// BEAUTIFULLY?" IF ALL FUNCTIONING WELL REMOVE DEBUG PRINTS BJ
-
-static int port = -1;
-int bytes_per_packet = DEFAULT_BYTES_PER_PACKET;
-static char file_name[MAX_FILENAME_LENGTH] = "";
-static char file_path[PATH_MAX] = "";
 static device_role role;
+static int port = -1;
+static int bytes_per_packet = DEFAULT_BYTES_PER_PACKET;
+static char file_name[PATH_MAX / 2 - 1];
+static char file_path[PATH_MAX / 2];
+static int fd = -1;
+static int port_fd = -1;
+
+static void close_fd() {
+    if (close(fd) == -1) {
+        perror("Close file");
+    }
+}
+
+static void close_stream() {
+    if (llclose(port_fd) == -1) {
+        fprintf(stderr, "Close port");
+    }
+}
+
+int send_file(int port, int bytes_per_packet) {
+    /* Get file file */
+    struct stat st;
+    if (stat(file_path, &st) == -1) {
+        perror("Get file info");
+        return -1;
+    }
+
+    /* Open file for reading */
+    fd = open(file_path, O_RDONLY);
+    if (fd == -1) {
+        perror("Open file");
+        return -1;
+    }
+    atexit(close_fd);
+
+    /* Open stream */
+    if ((port_fd = llopen(port, TRANSMITTER)) == -1) {
+        fprintf(stderr, "Can't open port\n");
+        return -1;
+    }
+    atexit(close_stream);
+
+    /* Send start packet */
+    char packet_file_name[PATH_MAX];
+    assemble_packet_file_name(packet_file_name, file_name, file_path);
+    if (send_control_packet(port_fd, st.st_size, bytes_per_packet,
+                            packet_file_name, 0) == -1) {
+        fprintf(stderr, "Failed writing start packet\n");
+        return -1;
+    }
+
+    /* Send file to stream */
+    if (send_file_data(port_fd, fd, bytes_per_packet) == -1) {
+        return -1;
+    }
+
+    /* Send end packet */
+    if (send_control_packet(port_fd, st.st_size, bytes_per_packet,
+                            packet_file_name, 1) == -1) {
+        fprintf(stderr, "Failed writing end packet\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+int receive_file(int port) {
+    /* Open stream */
+    if ((port_fd = llopen(port, RECEIVER)) == -1) {
+        fprintf(stderr, "Can't open port\n");
+    }
+    atexit(close_stream);
+
+    /* Read start packet */
+    if (read_validate_start_packet(port_fd, file_name) != 0) {
+        fprintf(stderr, "Start packet is not valid\n");
+        return -1;
+    }
+
+    /* Open new file with received file name */
+    char file_path_[PATH_MAX];
+    snprintf(file_path_, PATH_MAX, "%s/%s", file_path, file_name);
+    if ((fd = open(file_path_, O_WRONLY | O_CREAT | O_TRUNC,
+                   S_IRWXU | S_IRWXG | S_IRWXO)) == -1) {
+        perror("Open file for writing");
+        return -1;
+    }
+    atexit(close_fd);
+
+    /* Read from stream and write to file */
+    if (write_file_from_stream(port_fd, fd) != 0) {
+        return -1;
+    }
+
+    /* Validate end packet */
+    if (read_validate_end_packet(port_fd) != 0) {
+        return -1;
+    }
+
+    return 0;
+}
 
 static void print_usage(char **argv) {
     printf("Usage: %s [-v] -p <port> -s <filepath> -r <outdirectory> [-n "
@@ -124,10 +219,18 @@ int assert_valid_options() {
                    "bytes\n",
                    DEFAULT_BYTES_PER_PACKET);
         }
-    } else if (options.bytes_per_packet) {
-        fprintf(stderr,
+    } else {
+        if (options.bytes_per_packet) {
+            fprintf(
+                stderr,
                 "Application can't specify bytes per packet when receiving.\n");
-        return -1;
+            return -1;
+        }
+        if (options.name) {
+            fprintf(stderr,
+                    "Application can't specify file name when receiving.\n");
+            return -1;
+        }
     }
 
     return 0;
@@ -151,16 +254,18 @@ int main(int argc, char **argv) {
 
     switch (role) {
         case TRANSMITTER:
-            if (send_file(file_path, file_name, port, bytes_per_packet) != 0) {
-                printf("No file sent\n");
+            if (send_file(port, bytes_per_packet) != 0) {
+                printf("Failed to send file: %s\n", file_path);
                 return -1;
             }
+            printf("Sent file: %s\n", file_path);
             break;
         case RECEIVER:
-            if (receive_file(file_path, file_name, port) != 0) {
-                printf("No file received\n");
+            if (receive_file(port) != 0) {
+                printf("Failed to receive file: %s\n", file_path);
                 return -1;
             }
+            printf("Received file: %s\n", file_name);
             break;
     }
 
