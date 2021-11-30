@@ -75,7 +75,7 @@ int send_file(int port) {
 
     /* Open stream */
     if (options.verbose) {
-        printf("Opening stream on /dev/ttyS%d...\n", port);
+        printf("Trying to stream on /dev/ttyS%d...\n", port);
     }
     if ((port_fd = llopen(port, TRANSMITTER)) == -1) {
         fprintf(stderr, "Failed opening connection\n");
