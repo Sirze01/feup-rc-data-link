@@ -15,13 +15,14 @@ void print_progress_bar(int curr_byte, int file_size) {
         clear_screen();
         printf("[");
         int pos = PERCENTAGE_BAR_WIDTH * percentage;
-        for (int i = 0; i < PERCENTAGE_BAR_WIDTH; ++i) {
-            if (i < pos)
+        for (int i = 0; i < PERCENTAGE_BAR_WIDTH; i++) {
+            if (i < pos) {
                 printf("=");
-            else if (i == pos)
+            } else if (i == pos) {
                 printf(">");
-            else
+            } else {
                 printf(" ");
+            }
         }
         printf("] %d %%\n", percentage_);
         fflush(stdout);
