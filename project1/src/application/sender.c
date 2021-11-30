@@ -6,20 +6,9 @@
 #include "../protocol/data_link.h"
 #include "packet.h"
 #include "sender.h"
+#include "utils.h"
 
 static char packet[MAX_PACKET_SIZE];
-static int last_percentage = -1;
-
-static void print_progress_bar(int curr_byte, int file_size) {
-    float percentage = (float)curr_byte / (float)file_size;
-    int percentage_ = (int)(percentage * 100);
-    if (percentage_ != last_percentage) {
-        system("clear");
-        printf("percentage: %d\n", percentage_);
-        fflush(stdout);
-        last_percentage = percentage_;
-    }
-}
 
 void assemble_packet_file_name(char *out_packet_file_name, char *file_name,
                                char *file_path) {
