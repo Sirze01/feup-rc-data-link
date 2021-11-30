@@ -29,8 +29,8 @@ static struct {
 static device_role role;
 static int port = -1;
 static int bytes_per_packet = DEFAULT_BYTES_PER_PACKET;
-static char file_name[PATH_MAX / 2 - 1];
-static char file_path[PATH_MAX / 2];
+static char file_name[PATH_MAX / 2 - 1] = {};
+static char file_path[PATH_MAX / 2] = {};
 static int fd = -1;
 static int port_fd = -1;
 
@@ -64,7 +64,6 @@ int send_file(int port) {
 
     /* Open stream */
     if ((port_fd = llopen(port, TRANSMITTER)) == -1) {
-        fprintf(stderr, "Can't open port\n");
         return -1;
     }
     atexit(close_stream);
@@ -96,7 +95,7 @@ int send_file(int port) {
 int receive_file(int port) {
     /* Open stream */
     if ((port_fd = llopen(port, RECEIVER)) == -1) {
-        fprintf(stderr, "Can't open port\n");
+        return -1;
     }
     atexit(close_stream);
 
@@ -262,7 +261,7 @@ int main(int argc, char **argv) {
             break;
         case RECEIVER:
             if (receive_file(port) != 0) {
-                printf("Failed to receive file: %s\n", file_name);
+                printf("Failed to receive file: %s/%s\n", file_path, file_name);
                 return -1;
             }
             printf("Received file: %s\n", file_name);
