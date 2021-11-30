@@ -56,23 +56,24 @@ int write_file_from_stream(int port_fd, int fd) {
     unsigned char seq_no = 0;
     for (;;) {
         if (llread(port_fd, packet) < 0) {
-            fprintf(stderr, "Failed reading file at offset %u\n",
+            fprintf(stderr, "\nFailed reading file at offset %u\n",
                     curr_file_size);
             return -1;
         }
         if (packet[0] != DP_CONTROL) {
-            fprintf(stderr, "Byte control for file at offset %u is wrong\n",
+            fprintf(stderr, "\nByte control for file at offset %u is wrong\n",
                     curr_file_size);
             return -1;
         }
         if (packet[1] != DP_SEQ_NO(seq_no)) {
-            fprintf(stderr, "Sequence number for file at offset %u is wrong\n",
+            fprintf(stderr,
+                    "\nSequence number for file at offset %u is wrong\n",
                     curr_file_size);
             return -1;
         }
         int no_bytes = packet[2] * 256 + packet[3];
         if (write(fd, &packet[4], no_bytes) == -1) {
-            perror("Write file");
+            perror("\nWrite file");
             return -1;
         }
         curr_file_size += no_bytes;

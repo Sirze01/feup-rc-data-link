@@ -24,6 +24,5 @@ void print_progress_bar(unsigned curr_byte, unsigned file_size) {
             }
         }
         printf("] %d%% (%u/%u) ", percentage_, curr_byte, file_size);
-        fflush(stdout);
     }
 }

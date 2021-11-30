@@ -42,9 +42,7 @@ int send_file_data(int port_fd, int fd, int bytes_per_packet, int file_size) {
     for (;;) {
         int read_bytes = read(fd, data, bytes_per_packet);
         if (read_bytes < 0) {
-            fprintf(stderr,
-                    "Failed reading data from file for data packet %u\n",
-                    seq_no);
+            fprintf(stderr, "\nFailed readind file at offset %u\n", curr_byte);
             return -1;
         } else if (read_bytes == 0) {
             break;
@@ -52,7 +50,8 @@ int send_file_data(int port_fd, int fd, int bytes_per_packet, int file_size) {
             int packet_size =
                 assemble_data_packet(packet, seq_no, data, read_bytes);
             if (llwrite(port_fd, packet, packet_size) < packet_size) {
-                fprintf(stderr, "Failed writing data packet %d\n", seq_no);
+                fprintf(stderr, "\nFailed writing packet for file offset %u\n",
+                        curr_byte);
                 return -1;
             }
             seq_no++;

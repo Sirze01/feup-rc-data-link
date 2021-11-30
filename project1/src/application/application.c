@@ -40,8 +40,15 @@ static void close_fd() {
 }
 
 static void close_stream() {
+    if (options.verbose) {
+        printf("Trying to close stream...\n");
+    }
     if (llclose(port_fd) == -1) {
-        fprintf(stderr, "Close port");
+        fprintf(stderr, "Failed closing stream\n");
+        return;
+    }
+    if (options.verbose) {
+        printf("Stream closed\n");
     }
 }
 
@@ -91,7 +98,6 @@ int send_file(int port) {
 
     /* Send file to stream */
     if (send_file_data(port_fd, fd, bytes_per_packet, st.st_size) == -1) {
-        fprintf(stderr, "Failed writing data\n");
         return -1;
     }
 
@@ -117,6 +123,7 @@ int receive_file(int port) {
         printf("Trying to open stream on /dev/ttyS%d...\n", port);
     }
     if ((port_fd = llopen(port, RECEIVER)) == -1) {
+        fprintf(stderr, "Failed opening connection\n");
         return -1;
     }
     if (options.verbose) {
@@ -248,6 +255,9 @@ static int parse_options(int argc, char **argv) {
 }
 
 int assert_valid_options() {
+    /* Print immediately */
+    setbuf(stdout, NULL);
+
     /* Validate port */
     if (!options.port) {
         if (options.verbose) {
@@ -314,14 +324,12 @@ int main(int argc, char **argv) {
     switch (role) {
         case TRANSMITTER:
             if (send_file(port) != 0) {
-                printf("Failed to send file: %s\n", file_path);
                 return -1;
             }
             printf("Sent file: %s\n", file_path);
             break;
         case RECEIVER:
             if (receive_file(port) != 0) {
-                printf("Failed to receive file: %s/%s\n", file_path, file_name);
                 return -1;
             }
             printf("Received file: %s\n", file_name);
