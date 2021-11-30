@@ -46,7 +46,7 @@ static void close_stream() {
     }
 }
 
-int send_file(int port, int bytes_per_packet) {
+int send_file(int port) {
     /* Get file file */
     struct stat st;
     if (stat(file_path, &st) == -1) {
@@ -79,7 +79,7 @@ int send_file(int port, int bytes_per_packet) {
     }
 
     /* Send file to stream */
-    if (send_file_data(port_fd, fd, bytes_per_packet) == -1) {
+    if (send_file_data(port_fd, fd, bytes_per_packet, st.st_size) == -1) {
         return -1;
     }
 
@@ -254,7 +254,7 @@ int main(int argc, char **argv) {
 
     switch (role) {
         case TRANSMITTER:
-            if (send_file(port, bytes_per_packet) != 0) {
+            if (send_file(port) != 0) {
                 printf("Failed to send file: %s\n", file_path);
                 return -1;
             }
@@ -262,7 +262,7 @@ int main(int argc, char **argv) {
             break;
         case RECEIVER:
             if (receive_file(port) != 0) {
-                printf("Failed to receive file: %s\n", file_path);
+                printf("Failed to receive file: %s\n", file_name);
                 return -1;
             }
             printf("Received file: %s\n", file_name);

@@ -8,6 +8,18 @@
 #include "sender.h"
 
 static char packet[MAX_PACKET_SIZE];
+static int last_percentage = -1;
+
+static void print_progress_bar(int curr_byte, int file_size) {
+    float percentage = (float)curr_byte / (float)file_size;
+    int percentage_ = (int)(percentage * 100);
+    if (percentage_ != last_percentage) {
+        system("clear");
+        printf("percentage: %d\n", percentage_);
+        fflush(stdout);
+        last_percentage = percentage_;
+    }
+}
 
 void assemble_packet_file_name(char *out_packet_file_name, char *file_name,
                                char *file_path) {
@@ -34,26 +46,28 @@ int send_control_packet(int port_fd, int file_size, int bytes_per_packet,
     return 0;
 }
 
-int send_file_data(int port_fd, int fd, int bytes_per_packet) {
+int send_file_data(int port_fd, int fd, int bytes_per_packet, int file_size) {
     char data[MAX_DATA_PER_PACKET_SIZE];
-    int bytes_read = -1, seq_no = 0, packet_size = 0;
+    int seq_no = 0, curr_byte = 0;
     for (;;) {
-        bytes_read = read(fd, data, bytes_per_packet);
-        if (bytes_read < 0) {
+        int read_bytes = read(fd, data, bytes_per_packet);
+        if (read_bytes < 0) {
             fprintf(stderr,
                     "Failed reading data from file for data packet %d\n",
                     seq_no);
             return -1;
-        } else if (bytes_read == 0) {
+        } else if (read_bytes == 0) {
             break;
         } else {
-            packet_size =
-                assemble_data_packet(packet, seq_no, data, bytes_read);
+            int packet_size =
+                assemble_data_packet(packet, seq_no, data, read_bytes);
             if (llwrite(port_fd, packet, packet_size) < packet_size) {
                 fprintf(stderr, "Failed writing data packet %d\n", seq_no);
                 return -1;
             }
             seq_no = (seq_no + 1) % MAX_SEQ_NO;
+            curr_byte += read_bytes;
+            print_progress_bar(curr_byte, file_size);
         }
     }
     return 0;

@@ -51,9 +51,8 @@ int read_validate_start_packet(int port_fd, char *out_file_name) {
 }
 
 int write_file_from_stream(int port_fd, int fd) {
-    int bytes_read = -1;
-    int curr_file_size = 0;
-    for (int seq_no = 0;; seq_no = (seq_no + 1) % MAX_SEQ_NO) {
+    int bytes_read = -1, curr_file_size = 0, seq_no = 0;
+    for (;;) {
         if ((bytes_read = llread(port_fd, packet)) < 0) {
             return -1;
         }
@@ -61,6 +60,8 @@ int write_file_from_stream(int port_fd, int fd) {
             return -1;
         }
         if (packet[1] != DP_SEQ_NO(seq_no)) {
+            printf("packet[1]: %d, expected: %d\n", packet[1],
+                   DP_SEQ_NO(seq_no));
             return -1;
         }
         int no_bytes = packet[2] * 256 + packet[3];
@@ -72,6 +73,7 @@ int write_file_from_stream(int port_fd, int fd) {
         if (curr_file_size >= file_size) {
             break;
         }
+        seq_no = (seq_no + 1) % MAX_SEQ_NO;
     }
 
     return 0;

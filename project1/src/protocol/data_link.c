@@ -219,7 +219,7 @@ int llclose(int fd) {
 
 int llwrite(int fd, char *buffer, int length) {
     if (connection_role == RECEIVER) {
-        fprintf(stderr, "Cannot read while opened as a receiver\n");
+        fprintf(stderr, "Cannot read while open as a receiver\n");
         return -1;
     }
     if (length > IF_MAX_DATA_SIZE) {
@@ -248,7 +248,7 @@ int llwrite(int fd, char *buffer, int length) {
 
 int llread(int fd, char *buffer) {
     if (connection_role == TRANSMITTER) {
-        fprintf(stderr, "Cannot read while opened as a transmitter\n");
+        fprintf(stderr, "Cannot read while open as a transmitter\n");
         return -1;
     }
 
