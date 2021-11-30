@@ -29,8 +29,8 @@ static struct {
 static device_role role;
 static int port = -1;
 static int bytes_per_packet = DEFAULT_BYTES_PER_PACKET;
-static char file_name[PATH_MAX / 2 - 1] = {};
-static char file_path[PATH_MAX / 2] = {};
+static char file_name[PATH_MAX / 4] = {};
+static char file_path[PATH_MAX / 4] = {};
 static int fd = -1;
 static int port_fd = -1;
 
@@ -105,9 +105,19 @@ int receive_file(int port) {
         return -1;
     }
 
-    /* Open new file with received file name */
+    /* Make new file name if file exists */
     char file_path_[PATH_MAX];
     snprintf(file_path_, PATH_MAX, "%s/%s", file_path, file_name);
+    for (int n = 1; n < 1000; n++) {
+        if (access(file_path_, F_OK) == 0) {
+            snprintf(file_path_, PATH_MAX, "%s/(%d) %s", file_path, n,
+                     file_name);
+        } else {
+            break;
+        }
+    }
+
+    /* Open new file with received file name */
     if ((fd = open(file_path_, O_WRONLY | O_CREAT | O_TRUNC,
                    S_IRWXU | S_IRWXG | S_IRWXO)) == -1) {
         perror("Open file for writing");
