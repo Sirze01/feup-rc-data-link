@@ -29,6 +29,7 @@ int send_control_packet(int port_fd, unsigned file_size, int bytes_per_packet,
     int packet_size = assemble_control_packet(
         packet, is_end, file_size, bytes_per_packet, packet_file_name);
     if (llwrite(port_fd, packet, packet_size) < packet_size) {
+        fprintf(stderr, "Write control packet failed\n");
         return -1;
     }
     return 0;
@@ -56,7 +57,7 @@ int send_file_data(int port_fd, int fd, int bytes_per_packet, int file_size) {
             }
             seq_no++;
             curr_byte += read_bytes;
-            print_progress_bar(curr_byte, file_size);
+            print_progress_bar(curr_byte, file_size, 1);
         }
     }
     return 0;

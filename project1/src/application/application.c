@@ -63,6 +63,7 @@ int send_file(int port) {
 
     /* Open stream */
     if ((port_fd = llopen(port, TRANSMITTER)) == -1) {
+        fprintf(stderr, "Failed opening connection\n");
         return -1;
     }
     atexit(close_stream);
@@ -78,6 +79,7 @@ int send_file(int port) {
 
     /* Send file to stream */
     if (send_file_data(port_fd, fd, bytes_per_packet, st.st_size) == -1) {
+        fprintf(stderr, "Failed writing data\n");
         return -1;
     }
 

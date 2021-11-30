@@ -7,7 +7,7 @@
 
 static int last_percentage = -1;
 
-void print_progress_bar(unsigned curr_byte, unsigned file_size) {
+void print_progress_bar(unsigned curr_byte, unsigned file_size, int is_sender) {
     float percentage = (float)curr_byte / (float)file_size;
     int percentage_ = (int)(percentage * 100);
     if (percentage_ != last_percentage) {
@@ -25,7 +25,8 @@ void print_progress_bar(unsigned curr_byte, unsigned file_size) {
             }
         }
         printf("] %d %%\n", percentage_);
-        printf("\r%u bytes out of %u\n\n", curr_byte, file_size);
+        printf(is_sender ? "Sent " : "Received ");
+        printf("%u bytes out of %u\n\n", curr_byte, file_size);
         fflush(stdout);
     }
 }

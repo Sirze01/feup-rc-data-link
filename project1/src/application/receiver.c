@@ -76,7 +76,7 @@ int write_file_from_stream(int port_fd, int fd) {
             return -1;
         }
         curr_file_size += no_bytes;
-        print_progress_bar(curr_file_size, file_size);
+        print_progress_bar(curr_file_size, file_size, 0);
         if (curr_file_size >= file_size) {
             break;
         }
