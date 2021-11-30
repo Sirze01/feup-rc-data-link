@@ -62,19 +62,31 @@ int send_file(int port) {
     atexit(close_fd);
 
     /* Open stream */
+    if (options.verbose) {
+        printf("Opening stream on /dev/ttyS%d...\n", port);
+    }
     if ((port_fd = llopen(port, TRANSMITTER)) == -1) {
         fprintf(stderr, "Failed opening connection\n");
         return -1;
     }
+    if (options.verbose) {
+        printf("Stream open\n");
+    }
     atexit(close_stream);
 
     /* Send start packet */
+    if (options.verbose) {
+        printf("Sending start packet...\n");
+    }
     char packet_file_name[PATH_MAX];
     assemble_packet_file_name(packet_file_name, file_name, file_path);
     if (send_control_packet(port_fd, st.st_size, bytes_per_packet,
                             packet_file_name, 0) == -1) {
         fprintf(stderr, "Failed writing start packet\n");
         return -1;
+    }
+    if (options.verbose) {
+        printf("Sent start packet\n");
     }
 
     /* Send file to stream */
@@ -84,10 +96,16 @@ int send_file(int port) {
     }
 
     /* Send end packet */
+    if (options.verbose) {
+        printf("Sending end packet...\n");
+    }
     if (send_control_packet(port_fd, st.st_size, bytes_per_packet,
                             packet_file_name, 1) == -1) {
         fprintf(stderr, "Failed writing end packet\n");
         return -1;
+    }
+    if (options.verbose) {
+        printf("Sent end packet\n");
     }
 
     return 0;
@@ -95,27 +113,44 @@ int send_file(int port) {
 
 int receive_file(int port) {
     /* Open stream */
+    if (options.verbose) {
+        printf("Trying to open stream on /dev/ttyS%d...\n", port);
+    }
     if ((port_fd = llopen(port, RECEIVER)) == -1) {
         return -1;
+    }
+    if (options.verbose) {
+        printf("Stream open\n");
     }
     atexit(close_stream);
 
     /* Read start packet */
+    if (options.verbose) {
+        printf("Reading start packet...\n");
+    }
     if (read_validate_start_packet(port_fd, file_name) != 0) {
         fprintf(stderr, "Start packet is not valid\n");
         return -1;
+    }
+    if (options.verbose) {
+        printf("Sent start packet\n");
     }
 
     /* Make new file name if file exists */
     char file_path_[PATH_MAX];
     snprintf(file_path_, PATH_MAX, "%s/%s", file_path, file_name);
-    for (int n = 1; n < 1000; n++) {
+    bool changed_name = false;
+    for (int n = 1;; n++) {
         if (access(file_path_, F_OK) == 0) {
             snprintf(file_path_, PATH_MAX, "%s/(%d) %s", file_path, n,
                      file_name);
+            changed_name = true;
         } else {
             break;
         }
+    }
+    if (options.verbose && changed_name) {
+        printf("File already exists, writing instead to %s\n", file_path_);
     }
 
     /* Open new file with received file name */
@@ -132,8 +167,27 @@ int receive_file(int port) {
     }
 
     /* Validate end packet */
+    if (options.verbose) {
+        printf("Reading end packet...\n");
+    }
     if (read_validate_end_packet(port_fd) != 0) {
         return -1;
+    }
+    if (options.verbose) {
+        printf("Read end packet\n");
+    }
+
+    /* Print statistics */
+    if (options.verbose) {
+        struct stat st;
+        if (stat(file_path_, &st) == -1) {
+            perror("Stat");
+        } else {
+            int bcc_errors = llgeterrors();
+            float percentage = (float)bcc_errors / (float)st.st_size;
+            int percentage_ = (int)(percentage * 100);
+            printf("Error rate: %i%% (%d errors)\n", percentage_, bcc_errors);
+        }
     }
 
     return 0;
@@ -211,7 +265,7 @@ int assert_valid_options() {
     }
     if (strlen(file_path) == 0) {
         if (options.verbose) {
-            fprintf(stderr, "Empty file path %s\n", file_path);
+            fprintf(stderr, "Empty file path");
         }
         return -1;
     }

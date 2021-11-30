@@ -42,3 +42,10 @@ int llread(int fd, unsigned char *buffer);
  * @return -1 in case of error, 0 otherwise
  */
 int llclose(int fd);
+
+/**
+ * @brief Get number of received packet integrity errors (failed BCC2)
+ *
+ * @return number of errors
+ */
+int llgeterrors();

@@ -39,7 +39,6 @@ int send_file_data(int port_fd, int fd, int bytes_per_packet, int file_size) {
     unsigned char data[MAX_DATA_PER_PACKET_SIZE];
     unsigned char seq_no = 0;
     unsigned curr_byte = 0;
-    printf("\n");
     for (;;) {
         int read_bytes = read(fd, data, bytes_per_packet);
         if (read_bytes < 0) {
@@ -61,6 +60,6 @@ int send_file_data(int port_fd, int fd, int bytes_per_packet, int file_size) {
             print_progress_bar(curr_byte, file_size);
         }
     }
-    printf("\n\n");
+    printf("\n");
     return 0;
 }

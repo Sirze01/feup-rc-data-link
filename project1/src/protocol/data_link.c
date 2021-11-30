@@ -12,11 +12,14 @@
 #define sleep_continue                                                         \
     usleep(5000);                                                              \
     continue
+#define sleep_continue_long                                                    \
+    usleep(1);                                                                 \
+    continue
 
 /* Protocol settings */
 #define BAUDRATE B38400
-#define CONNECTION_TIMEOUT_TS 3
-#define CONNECTION_MAX_RETRIES 3
+#define CONNECTION_TIMEOUT_TS 5
+#define CONNECTION_MAX_RETRIES 5
 #define NEXT_FRAME_NUMBER(curr) (curr + 1) % 2
 
 /* Buffers */
@@ -24,6 +27,9 @@ static struct termios oldtio;
 static device_role connection_role;
 static unsigned char in_frame[IF_FRAME_SIZE];
 static unsigned char out_frame[IF_FRAME_SIZE];
+
+/* Statistics */
+static unsigned bcc_error_count = 0;
 
 /**
  * @brief Restore previously changed serial port configuration and close file
@@ -113,12 +119,17 @@ static int read_validate_if(int fd, unsigned char addr, unsigned char cmd,
     }
     unsigned char bcc2 = in_frame[unstuffed_frame_length - 2];
     if (byte_xor(in_frame + 4, unstuffed_frame_length - 6) != bcc2) {
+        bcc_error_count++;
         return -2;
     }
 
     /* Copy data to output buffer */
     memcpy(out_data_buffer, in_frame + 4, unstuffed_frame_length - 6);
     return unstuffed_frame_length - 6;
+}
+
+int llgeterrors() {
+    return bcc_error_count;
 }
 
 int llopen(int port, device_role role) {
