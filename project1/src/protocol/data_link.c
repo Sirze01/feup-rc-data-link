@@ -22,8 +22,8 @@
 /* Buffers */
 static struct termios oldtio;
 static device_role connection_role;
-static char in_frame[IF_FRAME_SIZE];
-static char out_frame[IF_FRAME_SIZE];
+static unsigned char in_frame[IF_FRAME_SIZE];
+static unsigned char out_frame[IF_FRAME_SIZE];
 
 /**
  * @brief Restore previously changed serial port configuration and close file
@@ -45,7 +45,7 @@ static void restore_close_port(int fd) {
  * @param cmd expected command
  * @return -1 on success, 0 otherwise
  */
-static int read_validate_suf(int fd, char addr, char cmd) {
+static int read_validate_suf(int fd, unsigned char addr, unsigned char cmd) {
     /* Read frame */
     for (int i = 0;; i++) {
         if (i == CONNECTION_MAX_RETRIES) {
@@ -59,7 +59,8 @@ static int read_validate_suf(int fd, char addr, char cmd) {
     }
 
     /* Validate frame */
-    char expected_suf[SUF_FRAME_SIZE] = {F_FLAG, addr, cmd, addr ^ cmd, F_FLAG};
+    unsigned char expected_suf[SUF_FRAME_SIZE] = {F_FLAG, addr, cmd, addr ^ cmd,
+                                                  F_FLAG};
     for (int i = 0; i < SUF_FRAME_SIZE; i++) {
         if (in_frame[i] != expected_suf[i]) {
             return -2;
@@ -77,8 +78,8 @@ static int read_validate_suf(int fd, char addr, char cmd) {
  * @param out_data_buffer buffer to write data to (no headers)
  * @return read data length
  */
-static int read_validate_if(int fd, char addr, char cmd,
-                            char *out_data_buffer) {
+static int read_validate_if(int fd, unsigned char addr, unsigned char cmd,
+                            unsigned char *out_data_buffer) {
     /* Read frame */
     int frame_length = -1;
     for (int i = 0;; i++) {
@@ -93,7 +94,7 @@ static int read_validate_if(int fd, char addr, char cmd,
     }
 
     /* Validate header */
-    char expected_if_header[4] = {F_FLAG, addr, cmd, addr ^ cmd};
+    unsigned char expected_if_header[4] = {F_FLAG, addr, cmd, addr ^ cmd};
     for (int i = 0; i < 4; i++) {
         if (in_frame[i] != expected_if_header[i]) {
             return -1;
@@ -106,7 +107,7 @@ static int read_validate_if(int fd, char addr, char cmd,
     if (unstuffed_frame_length == -1) {
         return -1;
     }
-    char bcc2 = in_frame[unstuffed_frame_length - 2];
+    unsigned char bcc2 = in_frame[unstuffed_frame_length - 2];
     if (byte_xor(in_frame + 4, unstuffed_frame_length - 6) != bcc2) {
         return -2;
     }
@@ -217,7 +218,7 @@ int llclose(int fd) {
     return -1;
 }
 
-int llwrite(int fd, char *buffer, int length) {
+int llwrite(int fd, unsigned char *buffer, int length) {
     if (connection_role == RECEIVER) {
         fprintf(stderr, "Cannot read while open as a receiver\n");
         return -1;
@@ -229,8 +230,8 @@ int llwrite(int fd, char *buffer, int length) {
         return -1;
     }
 
-    static char curr_frame_number = 0;
-    int next_frame_number = NEXT_FRAME_NUMBER(curr_frame_number);
+    static unsigned char curr_frame_number = 0;
+    unsigned char next_frame_number = NEXT_FRAME_NUMBER(curr_frame_number);
     int frame_length = assemble_iframe(
         out_frame, TRANSMITTER, IF_CONTROL(curr_frame_number), buffer, length);
 
@@ -246,14 +247,14 @@ int llwrite(int fd, char *buffer, int length) {
     return -1;
 }
 
-int llread(int fd, char *buffer) {
+int llread(int fd, unsigned char *buffer) {
     if (connection_role == TRANSMITTER) {
         fprintf(stderr, "Cannot read while open as a transmitter\n");
         return -1;
     }
 
-    static char curr_frame_number = 0;
-    int next_frame_number = NEXT_FRAME_NUMBER(curr_frame_number);
+    static unsigned char curr_frame_number = 0;
+    unsigned char next_frame_number = NEXT_FRAME_NUMBER(curr_frame_number);
     for (int tries = 0; tries < CONNECTION_MAX_RETRIES; tries++) {
         int c = read_validate_if(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                  IF_CONTROL(curr_frame_number), buffer);

@@ -16,7 +16,6 @@
 
 #define PATH_MAX 4096
 #define DEFAULT_BYTES_PER_PACKET 100
-#define MAX_SEQ_NO 10000
 
 static struct {
     bool port;

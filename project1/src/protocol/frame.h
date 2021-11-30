@@ -26,10 +26,11 @@
 #define IF_CONTROL(no_seq) (no_seq << 6)
 
 /* Frame related functions */
-char byte_xor(char *data, int size);
-int stuff_bytes(char *frame, int frame_size);
-int destuff_bytes(char *frame, int frame_size);
-void assemble_suframe(char *out_frame, int role, char ctr);
-int assemble_iframe(char *out_frame, int role, char ctr, char *unstuffed_data,
-                    int unstuffed_data_size);
-int read_frame(char *out_frame, int max_frame_size, int fd);
+unsigned char byte_xor(unsigned char *data, unsigned size);
+int stuff_bytes(unsigned char *frame, unsigned frame_size);
+int destuff_bytes(unsigned char *frame, unsigned frame_size);
+void assemble_suframe(unsigned char *out_frame, int role, unsigned char ctr);
+int assemble_iframe(unsigned char *out_frame, int role, unsigned char ctr,
+                    unsigned char *unstuffed_data,
+                    unsigned unstuffed_data_size);
+int read_frame(unsigned char *out_frame, unsigned max_frame_size, int fd);

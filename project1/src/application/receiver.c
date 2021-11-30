@@ -8,7 +8,7 @@
 #include "receiver.h"
 #include "utils.h"
 
-static char packet[MAX_PACKET_SIZE];
+static unsigned char packet[MAX_PACKET_SIZE];
 static int file_size = -1;
 static char file_name[PATH_MAX] = "";
 static int bytes_per_packet = -1;
@@ -52,9 +52,10 @@ int read_validate_start_packet(int port_fd, char *out_file_name) {
 }
 
 int write_file_from_stream(int port_fd, int fd) {
-    int bytes_read = -1, curr_file_size = 0, seq_no = 0;
+    int curr_file_size = 0;
+    unsigned char seq_no = 0;
     for (;;) {
-        if ((bytes_read = llread(port_fd, packet)) < 0) {
+        if (llread(port_fd, packet) < 0) {
             return -1;
         }
         if (packet[0] != DP_CONTROL) {
@@ -73,7 +74,7 @@ int write_file_from_stream(int port_fd, int fd) {
         if (curr_file_size >= file_size) {
             break;
         }
-        seq_no = (seq_no + 1) % MAX_SEQ_NO;
+        seq_no++;
     }
 
     return 0;

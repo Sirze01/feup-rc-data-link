@@ -8,7 +8,7 @@
 #include "sender.h"
 #include "utils.h"
 
-static char packet[MAX_PACKET_SIZE];
+static unsigned char packet[MAX_PACKET_SIZE];
 
 void assemble_packet_file_name(char *out_packet_file_name, char *file_name,
                                char *file_path) {
@@ -24,7 +24,7 @@ void assemble_packet_file_name(char *out_packet_file_name, char *file_name,
     }
 }
 
-int send_control_packet(int port_fd, int file_size, int bytes_per_packet,
+int send_control_packet(int port_fd, unsigned file_size, int bytes_per_packet,
                         char *packet_file_name, int is_end) {
     int packet_size = assemble_control_packet(
         packet, is_end, file_size, bytes_per_packet, packet_file_name);
@@ -35,13 +35,14 @@ int send_control_packet(int port_fd, int file_size, int bytes_per_packet,
 }
 
 int send_file_data(int port_fd, int fd, int bytes_per_packet, int file_size) {
-    char data[MAX_DATA_PER_PACKET_SIZE];
-    int seq_no = 0, curr_byte = 0;
+    unsigned char data[MAX_DATA_PER_PACKET_SIZE];
+    unsigned char seq_no = 0;
+    int curr_byte = 0;
     for (;;) {
         int read_bytes = read(fd, data, bytes_per_packet);
         if (read_bytes < 0) {
             fprintf(stderr,
-                    "Failed reading data from file for data packet %d\n",
+                    "Failed reading data from file for data packet %u\n",
                     seq_no);
             return -1;
         } else if (read_bytes == 0) {
@@ -53,7 +54,7 @@ int send_file_data(int port_fd, int fd, int bytes_per_packet, int file_size) {
                 fprintf(stderr, "Failed writing data packet %d\n", seq_no);
                 return -1;
             }
-            seq_no = (seq_no + 1) % MAX_SEQ_NO;
+            seq_no++;
             curr_byte += read_bytes;
             print_progress_bar(curr_byte, file_size);
         }
