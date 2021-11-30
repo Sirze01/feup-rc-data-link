@@ -18,39 +18,43 @@ char byte_xor(char *data, int size) {
     return mxor;
 }
 
-int stuff_bytes(char *data, int data_size) {
-    if (data_size > IF_MAX_DATA_SIZE) {
+int stuff_bytes(char *frame, int frame_size) {
+    if (frame_size > IF_MAX_UNSTUFFED_FRAME_SIZE) {
         return -1;
     }
 
     int new_size = 0;
-    for (int i = 0; i < data_size; i++) {
-        if (data[i] == F_FLAG) {
-            aux_frame[new_size++] = F_ESCAPE_CHAR;
-            aux_frame[new_size++] = 0x5e;
-        } else if (data[i] == F_ESCAPE_CHAR) {
-            aux_frame[new_size++] = F_ESCAPE_CHAR;
-            aux_frame[new_size++] = 0x5d;
+    for (int i = 0; i < frame_size; i++) {
+        if (i != 0 && i != frame_size - 1) {
+            if (frame[i] == F_FLAG) {
+                aux_frame[new_size++] = F_ESCAPE_CHAR;
+                aux_frame[new_size++] = 0x5e;
+            } else if (frame[i] == F_ESCAPE_CHAR) {
+                aux_frame[new_size++] = F_ESCAPE_CHAR;
+                aux_frame[new_size++] = 0x5d;
+            } else {
+                aux_frame[new_size++] = frame[i];
+            }
         } else {
-            aux_frame[new_size++] = data[i];
+            aux_frame[new_size++] = frame[i];
         }
     }
-    memcpy(data, aux_frame, new_size);
+    memcpy(frame, aux_frame, new_size);
     return new_size;
 }
 
-int destuff_bytes(char *data, int data_size) {
+int destuff_bytes(char *frame, int frame_size) {
     int new_size = 0;
-    for (int i = 0; i < data_size; i++) {
-        if (data[i] == F_ESCAPE_CHAR) {
-            if (i == data_size - 1) {
+    for (int i = 0; i < frame_size; i++) {
+        if (frame[i] == F_ESCAPE_CHAR) {
+            if (i == frame_size - 1) {
                 fprintf(stderr, "Stuffed data is corrupted");
                 return -1;
             }
-            if (data[i + 1] == 0x5e) {
+            if (frame[i + 1] == 0x5e) {
                 aux_frame[new_size++] = F_FLAG;
                 i++;
-            } else if (data[i + 1] == 0x5d) {
+            } else if (frame[i + 1] == 0x5d) {
                 aux_frame[new_size++] = F_ESCAPE_CHAR;
                 i++;
             } else {
@@ -58,18 +62,18 @@ int destuff_bytes(char *data, int data_size) {
                 return -1;
             }
         } else {
-            aux_frame[new_size++] = data[i];
+            aux_frame[new_size++] = frame[i];
         }
     }
-    memcpy(data, aux_frame, new_size);
+    memcpy(frame, aux_frame, new_size);
     return new_size;
 }
 
-void assemble_suframe(char *out_frame, device_role role, char ctr) {
+void assemble_suframe(char *out_frame, int role, char ctr) {
 
     out_frame[0] = F_FLAG;
-    out_frame[1] = role == TRANSMITTER ? F_ADDRESS_TRANSMITTER_COMMANDS
-                                       : F_ADDRESS_RECEIVER_COMMANDS;
+    out_frame[1] = role == 0 ? F_ADDRESS_TRANSMITTER_COMMANDS
+                             : F_ADDRESS_RECEIVER_COMMANDS;
     out_frame[2] = ctr;
 
     char fields[] = {out_frame[1], out_frame[2]};
@@ -78,11 +82,11 @@ void assemble_suframe(char *out_frame, device_role role, char ctr) {
     out_frame[4] = F_FLAG;
 }
 
-int assemble_iframe(char *out_frame, device_role role, char ctr,
-                    char *unstuffed_data, int unstuffed_data_size) {
+int assemble_iframe(char *out_frame, int role, char ctr, char *unstuffed_data,
+                    int unstuffed_data_size) {
     out_frame[0] = F_FLAG;
-    out_frame[1] = role == TRANSMITTER ? F_ADDRESS_TRANSMITTER_COMMANDS
-                                       : F_ADDRESS_RECEIVER_COMMANDS;
+    out_frame[1] = role == 0 ? F_ADDRESS_TRANSMITTER_COMMANDS
+                             : F_ADDRESS_RECEIVER_COMMANDS;
     out_frame[2] = ctr;
 
     char fields[] = {out_frame[1], out_frame[2]};
@@ -91,12 +95,12 @@ int assemble_iframe(char *out_frame, device_role role, char ctr,
     char bcc = byte_xor(unstuffed_data, unstuffed_data_size);
 
     memcpy(out_frame + 4, unstuffed_data, unstuffed_data_size);
-    int stuffed_data_size = stuff_bytes(out_frame + 4, unstuffed_data_size);
 
-    out_frame[4 + stuffed_data_size] = bcc;
-    out_frame[5 + stuffed_data_size] = F_FLAG;
+    out_frame[4 + unstuffed_data_size] = bcc;
+    out_frame[5 + unstuffed_data_size] = F_FLAG;
 
-    return 6 + stuffed_data_size;
+    int stuffed_frame_size = stuff_bytes(out_frame, 6 + unstuffed_data_size);
+    return stuffed_frame_size;
 }
 
 int read_frame(char *out_frame, int max_frame_size, int fd) {
@@ -108,10 +112,8 @@ int read_frame(char *out_frame, int max_frame_size, int fd) {
     out_frame[0] = 0;
     while (out_frame[0] != F_FLAG) {
         if (read(fd, out_frame, 1) <= 0) {
-            /*             printf("im reading nothing...\n"); */
             return -1;
         }
-        /*         printf("out_frame[0] = %x\n", out_frame[0]); */
     }
 
     /* Read until flag */
@@ -122,7 +124,6 @@ int read_frame(char *out_frame, int max_frame_size, int fd) {
         if (read(fd, out_frame + i, 1) <= 0) {
             return -1;
         }
-        /*         printf("out_frame[%d] = %x\n", i, out_frame[i]); */
         if (out_frame[i] == F_FLAG) {
             return i + 1;
         }

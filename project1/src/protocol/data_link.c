@@ -5,7 +5,8 @@
 #include <termios.h>
 #include <unistd.h>
 
-#include "data_link_layer.h"
+#include "data_link.h"
+#include "frame.h"
 
 /* Useful for delaying retries */
 #define sleep_continue                                                         \
@@ -14,8 +15,8 @@
 
 /* Protocol settings */
 #define BAUDRATE B38400
-#define CONNECTION_TIMEOUT_TS 5
-#define CONNECTION_MAX_RETRIES 5
+#define CONNECTION_TIMEOUT_TS 3
+#define CONNECTION_MAX_RETRIES 3
 #define NEXT_FRAME_NUMBER(curr) (curr + 1) % 2
 
 /* Buffers */
@@ -45,7 +46,6 @@ static void restore_close_port(int fd) {
  * @return -1 on success, 0 otherwise
  */
 static int read_validate_suf(int fd, char addr, char cmd) {
-    /*     printf("trying to read suf\n"); */
     /* Read frame */
     for (int i = 0;; i++) {
         if (i == CONNECTION_MAX_RETRIES) {
@@ -101,18 +101,19 @@ static int read_validate_if(int fd, char addr, char cmd,
     }
 
     /* Destuff data and validate BCC2 */
-    char bcc2 = in_frame[frame_length - 2];
-    int unstuffed_data_length = destuff_bytes(in_frame + 4, frame_length - 6);
-    if (unstuffed_data_length == -1) {
+    int unstuffed_frame_length = destuff_bytes(in_frame, frame_length);
+
+    if (unstuffed_frame_length == -1) {
         return -1;
     }
-    if (byte_xor(in_frame + 4, unstuffed_data_length) != bcc2) {
+    char bcc2 = in_frame[unstuffed_frame_length - 2];
+    if (byte_xor(in_frame + 4, unstuffed_frame_length - 6) != bcc2) {
         return -2;
     }
 
     /* Copy data to output buffer */
-    memcpy(out_data_buffer, in_frame + 4, unstuffed_data_length);
-    return unstuffed_data_length;
+    memcpy(out_data_buffer, in_frame + 4, unstuffed_frame_length - 6);
+    return unstuffed_frame_length - 6;
 }
 
 int llopen(int port, device_role role) {
@@ -162,25 +163,21 @@ int llopen(int port, device_role role) {
                 perror("Write suframe");
                 sleep_continue;
             }
-            printf("transmitter sent set\n");
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_UA) == -1) {
                 sleep_continue;
             }
-            printf("transmitter read ua\n");
             return fd;
         } else {
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_SET) == -1) {
                 sleep_continue;
             }
-            printf("receiver read set\n");
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_UA);
             if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
                 perror("Write suframe");
                 sleep_continue;
             }
-            printf("receiver sent ua\n");
             return fd;
         }
     }
@@ -192,35 +189,23 @@ int llopen(int port, device_role role) {
 int llclose(int fd) {
     for (;;) {
         if (connection_role == TRANSMITTER) {
-            /*             printf("vou dar assemble ao disc\n"); */
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_DISC);
             write(fd, out_frame, SUF_FRAME_SIZE);
-            /*             printf("escrevi disconnect\n"); */
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_DISC) == -1) {
-                /*                 printf("nao consegui ler um disconnect\n");
-                 */
                 sleep_continue;
             }
-            printf("li disconnect\n");
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_UA);
             write(fd, out_frame, SUF_FRAME_SIZE);
-            printf("mandei ua\n");
         } else {
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_DISC) == -1) {
-                /*                 printf("nao consegui ler um disconnect e vou
-                 * tentar de novo\n"); */
                 sleep_continue;
             }
-            printf("li disconnect\n");
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_DISC);
             write(fd, out_frame, SUF_FRAME_SIZE);
-            printf("mandei disconnect\n");
             while (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                      SUF_CONTROL_UA) == -1) {
-                /*                 printf("nao consegui ler um ua e vou tentar
-                 * de novo\n"); */
                 sleep_continue;
             }
         }
@@ -234,7 +219,7 @@ int llclose(int fd) {
 
 int llwrite(int fd, char *buffer, int length) {
     if (connection_role == RECEIVER) {
-        fprintf(stderr, "Cannot read while opened as a receiver\n");
+        fprintf(stderr, "Cannot read while open as a receiver\n");
         return -1;
     }
     if (length > IF_MAX_DATA_SIZE) {
@@ -248,22 +233,22 @@ int llwrite(int fd, char *buffer, int length) {
     int next_frame_number = NEXT_FRAME_NUMBER(curr_frame_number);
     int frame_length = assemble_iframe(
         out_frame, TRANSMITTER, IF_CONTROL(curr_frame_number), buffer, length);
+
     for (int tries = 0; tries < CONNECTION_MAX_RETRIES; tries++) {
         write(fd, out_frame, frame_length);
         if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                               SUF_CONTROL_RR(next_frame_number)) != 0) {
-            printf("queria ler um rr e nao li. vou tentar de novo\n");
             sleep_continue;
         }
         curr_frame_number = next_frame_number;
-        return frame_length - 6;
+        return length;
     }
     return -1;
 }
 
 int llread(int fd, char *buffer) {
     if (connection_role == TRANSMITTER) {
-        fprintf(stderr, "Cannot read while opened as a transmitter\n");
+        fprintf(stderr, "Cannot read while open as a transmitter\n");
         return -1;
     }
 

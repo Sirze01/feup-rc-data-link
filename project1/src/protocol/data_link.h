@@ -2,6 +2,11 @@
 
 #include "frame.h"
 
+typedef enum device_role { TRANSMITTER, RECEIVER } device_role;
+
+#define MAX_PACKET_SIZE 4092
+#define MAX_DATA_PER_PACKET_SIZE 4088
+
 /**
  * @brief Open a data link on /dev/ttyS<port> with given role.
  *
