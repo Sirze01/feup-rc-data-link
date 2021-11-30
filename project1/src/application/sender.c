@@ -37,7 +37,7 @@ int send_control_packet(int port_fd, unsigned file_size, int bytes_per_packet,
 int send_file_data(int port_fd, int fd, int bytes_per_packet, int file_size) {
     unsigned char data[MAX_DATA_PER_PACKET_SIZE];
     unsigned char seq_no = 0;
-    int curr_byte = 0;
+    unsigned curr_byte = 0;
     for (;;) {
         int read_bytes = read(fd, data, bytes_per_packet);
         if (read_bytes < 0) {

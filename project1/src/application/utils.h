@@ -1,3 +1,3 @@
 #pragma once
 
-void print_progress_bar(int curr_byte, int file_size);
+void print_progress_bar(unsigned curr_byte, unsigned file_size);

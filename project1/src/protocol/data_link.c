@@ -121,18 +121,13 @@ int llopen(int port, device_role role) {
     /* Assemble device file path */
     char port_path[PATH_MAX];
     int c = snprintf(port_path, PATH_MAX, "/dev/ttyS%d", port);
-    if (c < 0) {
-        fprintf(stderr, "Output error parsing port path\n");
-        return -1;
-    } else if (c >= PATH_MAX) {
-        fprintf(stderr, "Unreachable port path\n");
+    if (c < 0 || c > PATH_MAX) {
         return -1;
     }
 
     /* Open port */
-    int fd = open(port_path, O_RDWR | O_NOCTTY); /* Do not control terminal */
+    int fd = open(port_path, O_RDWR | O_NOCTTY);
     if (fd == -1) {
-        perror("Error opening port");
         return -1;
     }
 
@@ -213,20 +208,15 @@ int llclose(int fd) {
         restore_close_port(fd);
         return 0;
     }
-    fprintf(stderr, "Connection was improperly closed, other end may hang\n");
     restore_close_port(fd);
     return -1;
 }
 
 int llwrite(int fd, unsigned char *buffer, int length) {
     if (connection_role == RECEIVER) {
-        fprintf(stderr, "Cannot read while open as a receiver\n");
         return -1;
     }
     if (length > IF_MAX_DATA_SIZE) {
-        fprintf(stderr,
-                "Cannot send packet with length greater than %d bytes\n",
-                IF_MAX_DATA_SIZE);
         return -1;
     }
 
@@ -249,7 +239,6 @@ int llwrite(int fd, unsigned char *buffer, int length) {
 
 int llread(int fd, unsigned char *buffer) {
     if (connection_role == TRANSMITTER) {
-        fprintf(stderr, "Cannot read while open as a transmitter\n");
         return -1;
     }
 

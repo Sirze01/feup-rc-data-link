@@ -24,22 +24,22 @@ int assemble_control_packet(unsigned char *out_packet, int end,
     /* File size */
     out_packet[curr_byte++] = CP_TYPE_SIZE;
     out_packet[curr_byte++] = sizeof(unsigned);
-    memcpy(out_packet + curr_byte, &file_size, sizeof(int));
-    curr_byte += sizeof(int);
+    memcpy(out_packet + curr_byte, &file_size, sizeof(unsigned));
+    curr_byte += sizeof(unsigned);
 
     /* File name */
-    int file_name_length = strlen(file_name);
+    unsigned file_name_length = strlen(file_name);
     out_packet[curr_byte++] = CP_TYPE_FILENAME;
-    memcpy(out_packet + curr_byte, &file_name_length, sizeof(int));
-    curr_byte += sizeof(int);
+    memcpy(out_packet + curr_byte, &file_name_length, sizeof(unsigned));
+    curr_byte += sizeof(unsigned);
     memcpy(out_packet + curr_byte, file_name, file_name_length);
     curr_byte += file_name_length;
 
     /* Max bytes sent per packet */
     out_packet[curr_byte++] = CP_TYPE_BYTES_PER_PACKET;
-    out_packet[curr_byte++] = sizeof(int);
-    memcpy(out_packet + curr_byte, &bytes_per_packet, sizeof(int));
-    curr_byte += sizeof(int);
+    out_packet[curr_byte++] = sizeof(unsigned);
+    memcpy(out_packet + curr_byte, &bytes_per_packet, sizeof(unsigned));
+    curr_byte += sizeof(unsigned);
 
     return curr_byte;
 }
