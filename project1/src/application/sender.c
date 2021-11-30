@@ -15,13 +15,12 @@ void assemble_packet_file_name(char *out_packet_file_name, char *file_name,
     if (strlen(file_name) == 0) {
         char *last_name = strrchr(file_path, '/');
         if (last_name != NULL) {
-            strncpy(out_packet_file_name, last_name + 1,
-                    strlen(last_name + 1) + 1);
+            strncpy(out_packet_file_name, last_name + 1, PATH_MAX);
         } else {
-            strncpy(out_packet_file_name, file_path, strlen(file_path) + 1);
+            strncpy(out_packet_file_name, file_path, PATH_MAX);
         }
     } else {
-        strncpy(out_packet_file_name, file_name, strlen(file_name) + 1);
+        strncpy(out_packet_file_name, file_name, PATH_MAX);
     }
 }
 
