@@ -8,24 +8,28 @@
 #include "receiver.h"
 #include "utils.h"
 
+static unsigned char ctrl_packet[MAX_PACKET_SIZE];
 static unsigned char packet[MAX_PACKET_SIZE];
 static unsigned file_size = -1;
 static char file_name[PATH_MAX] = "";
 static unsigned bytes_per_packet = -1;
 
-int read_validate_start_packet(int port_fd, char *out_file_name) {
+int read_validate_control_packet(int port_fd, char *out_file_name, int is_end) {
     /* Read start packet */
     int packet_length = -1;
     if ((packet_length = llread(port_fd, packet)) == -1) {
-        fprintf(stderr, "Can't read start packet\n");
         return -1;
     }
+    if (!is_end) {
+        memcpy(ctrl_packet, packet, packet_length);
+    }
 
-    /* Validate start packet */
-    if (packet[0] != CP_CONTROL_START) {
+    /* Validate arguments */
+    unsigned char c = is_end ? CP_CONTROL_END : CP_CONTROL_START;
+    if (packet[0] != c) {
         return -2;
     }
-    int file_name_length = -1;
+    unsigned file_name_size = 0;
     for (int i = 1; i < packet_length;) {
         switch (packet[i]) {
             case CP_TYPE_SIZE:
@@ -33,11 +37,12 @@ int read_validate_start_packet(int port_fd, char *out_file_name) {
                 i += (2 + packet[i + 1]);
                 break;
             case CP_TYPE_FILENAME:
-                memcpy(&file_name_length, packet + i + 1, sizeof(int));
-                i += (1 + sizeof(int));
-                memcpy(file_name, packet + i, file_name_length);
-                strncpy(out_file_name, file_name, file_name_length);
-                i += file_name_length;
+                memcpy(&file_name_size, packet + i + 1, sizeof(unsigned));
+                i += (1 + sizeof(unsigned));
+                i += snprintf(file_name, file_name_size, "%s",
+                              (char *)packet + i) +
+                     1;
+                strncpy(out_file_name, file_name, file_name_size - 1);
                 break;
             case CP_TYPE_BYTES_PER_PACKET:
                 memcpy(&bytes_per_packet, packet + i + 2, packet[i + 1]);
@@ -47,6 +52,11 @@ int read_validate_start_packet(int port_fd, char *out_file_name) {
                 fprintf(stderr, "Unsupported parameter type\n");
                 return -1;
         }
+    }
+
+    /* Compare with start packet if end packet */
+    if (is_end && memcmp(packet + 1, ctrl_packet + 1, packet_length - 1) != 0) {
+        return -1;
     }
     return 0;
 }
@@ -77,59 +87,12 @@ int write_file_from_stream(int port_fd, int fd) {
             return -1;
         }
         curr_file_size += no_bytes;
-        print_progress_bar(curr_file_size, file_size);
+        print_transfer_progress_bar(curr_file_size, file_size);
         if (curr_file_size >= file_size) {
             break;
         }
         seq_no++;
     }
     printf("\n");
-    return 0;
-}
-
-int read_validate_end_packet(int port_fd) {
-    /* Read end packet */
-    int packet_length = -1;
-    if ((packet_length = llread(port_fd, packet)) == -1) {
-        fprintf(stderr, "Can't read end packet\n");
-        return -1;
-    }
-
-    /* Validate end packet */
-    if (packet[0] != CP_CONTROL_END) {
-        return -2;
-    }
-    int nfile_name_length = -1, nfile_size = -1, nbytes_per_packet = -1;
-    char nfile_name[PATH_MAX];
-    for (int i = 1; i < packet_length;) {
-        switch (packet[i]) {
-            case CP_TYPE_SIZE:
-                memcpy(&nfile_size, packet + i + 2, packet[i + 1]);
-                i += (2 + packet[i + 1]);
-                if (nfile_size != file_size) {
-                    return -2;
-                }
-                break;
-            case CP_TYPE_FILENAME:
-                memcpy(&nfile_name_length, packet + i + 1, sizeof(int));
-                i += (1 + sizeof(int));
-                memcpy(&nfile_name, packet + i, nfile_name_length);
-                if (strcmp(nfile_name, file_name) != 0) {
-                    return -2;
-                }
-                i += nfile_name_length;
-                break;
-            case CP_TYPE_BYTES_PER_PACKET:
-                memcpy(&nbytes_per_packet, packet + i + 2, packet[i + 1]);
-                i += (2 + packet[i + 1]);
-                if (nbytes_per_packet != bytes_per_packet) {
-                    return -2;
-                }
-                break;
-            default:
-                fprintf(stderr, "Unsupported parameter type\n");
-                return -2;
-        }
-    }
     return 0;
 }

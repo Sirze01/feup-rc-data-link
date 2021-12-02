@@ -56,7 +56,7 @@ int send_file_data(int port_fd, int fd, int bytes_per_packet, int file_size) {
             }
             curr_byte += read_bytes;
             seq_no++;
-            print_progress_bar(curr_byte, file_size);
+            print_transfer_progress_bar(curr_byte, file_size);
         }
     }
     printf("\n");

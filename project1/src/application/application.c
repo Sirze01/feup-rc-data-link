@@ -145,7 +145,7 @@ int receive_file(int port) {
     if (options.verbose) {
         printf("Reading start packet...\n");
     }
-    if (read_validate_start_packet(port_fd, file_name) != 0) {
+    if (read_validate_control_packet(port_fd, file_name, 0) != 0) {
         fprintf(stderr, "Start packet is not valid\n");
         return -1;
     }
@@ -194,7 +194,8 @@ int receive_file(int port) {
     if (options.verbose) {
         printf("Reading end packet...\n");
     }
-    if (read_validate_end_packet(port_fd) != 0) {
+    if (read_validate_control_packet(port_fd, file_name, 1) != 0) {
+        fprintf(stderr, "End packet is not valid\n");
         return -1;
     }
     if (options.verbose) {
@@ -361,10 +362,28 @@ int assert_valid_options() {
 
     /* Validate FER */
     if (options.induced_fer) {
-        if (induced_fer < 0 || induced_fer > 100) {
+        if (induced_fer <= 0 || induced_fer > 100) {
             fprintf(stderr,
-                    "Induced FER must be a valid probability from 0 to 100\n");
+                    "Induced FER must be a valid probability from 1 to 100\n");
             return -1;
+        }
+        if (options.verbose) {
+            printf("Inducing a probability of %d%% of each frame validation "
+                   "failing\n",
+                   induced_fer);
+        }
+    }
+
+    /* Validate delay */
+    if (options.induced_delay) {
+        if (induced_delay <= 0) {
+            fprintf(stderr, "Induced delay must be a valid positive integer\n");
+            return -1;
+        }
+        if (options.verbose) {
+            printf("Inducing a delay of %d microseconds while validating each "
+                   "frame\n",
+                   induced_delay);
         }
     }
 
