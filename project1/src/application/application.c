@@ -63,13 +63,14 @@ static void close_stream() {
 }
 
 int send_file(int port) {
-    /* Get file file */
+    /* Get file size */
     struct stat st;
     if (stat(file_path, &st) == -1) {
         perror("Get file info");
         return -1;
     }
-    if (st.st_size > UINT_MAX) {
+
+    if (st.st_size > (off_t)UINT_MAX) {
         fprintf(stderr, "File size is too large\n");
         return -1;
     }
@@ -306,11 +307,12 @@ int assert_valid_options() {
                 fprintf(stderr, "Invalid bytes per packet\n");
                 return -1;
             }
+        } else {
+            verbose_printf(
+                "No bytes per packet value given, using default size: %d "
+                "bytes\n",
+                DEFAULT_BYTES_PER_PACKET);
         }
-        verbose_printf(
-            "No bytes per packet value given, using default size: %d "
-            "bytes\n",
-            DEFAULT_BYTES_PER_PACKET);
         if (options.induced_fer) {
             fprintf(stderr,
                     "Application can't induce frame errors when sending\n");
