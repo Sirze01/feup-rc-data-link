@@ -29,7 +29,7 @@ static unsigned char in_frame[IF_FRAME_SIZE];
 static unsigned char out_frame[IF_FRAME_SIZE];
 
 /* Statistics */
-static unsigned bcc_error_count = 0;
+static unsigned if_error_count = 0;
 
 /**
  * @brief Restore previously changed serial port configuration and close file
@@ -107,6 +107,7 @@ static int read_validate_if(int fd, unsigned char addr, unsigned char cmd,
     unsigned char expected_if_header[4] = {F_FLAG, addr, cmd, addr ^ cmd};
     for (int i = 0; i < 4; i++) {
         if (in_frame[i] != expected_if_header[i]) {
+            if_error_count++;
             return -1;
         }
     }
@@ -119,7 +120,7 @@ static int read_validate_if(int fd, unsigned char addr, unsigned char cmd,
     }
     unsigned char bcc2 = in_frame[unstuffed_frame_length - 2];
     if (byte_xor(in_frame + 4, unstuffed_frame_length - 6) != bcc2) {
-        bcc_error_count++;
+        if_error_count++;
         return -2;
     }
 
@@ -129,7 +130,7 @@ static int read_validate_if(int fd, unsigned char addr, unsigned char cmd,
 }
 
 int llgeterrors() {
-    return bcc_error_count;
+    return if_error_count;
 }
 
 int llopen(int port, device_role role) {
