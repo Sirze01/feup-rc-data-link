@@ -25,7 +25,9 @@ static struct {
     bool name;
     bool bytes_per_packet;
     bool verbose;
-} options = {false, false, false, false, false};
+    bool induced_fer;
+    bool induced_delay;
+} options = {false, false, false, false, false, false, false};
 
 static device_role role;
 static int port = -1;
@@ -34,6 +36,8 @@ static char file_name[PATH_MAX / 4] = {};
 static char file_path[PATH_MAX / 4] = {};
 static int fd = -1;
 static int port_fd = -1;
+static int induced_fer = 0;
+static int induced_delay = 0;
 
 static void close_fd() {
     if (close(fd) == -1) {
@@ -203,10 +207,12 @@ int receive_file(int port) {
         if (stat(file_path_, &st) == -1) {
             perror("Stat");
         } else {
-            int bcc_errors = llgeterrors();
-            float percentage = (float)bcc_errors / (float)st.st_size;
+            int errors = llgeterrors();
+            int no_packets = st.st_size / bytes_per_packet;
+            float percentage = (float)errors / (float)no_packets;
             int percentage_ = (int)(percentage * 100);
-            printf("Error rate: %i%% (%d errors)\n", percentage_, bcc_errors);
+            printf("Error rate: %i%% (%d errors in %d packets)\n", percentage_,
+                   errors, no_packets);
             double elapsed_secs = elapsed_seconds(&start_time, &end_time);
             double kbs = ((double)st.st_size / 1000) / elapsed_secs;
             printf("Elapsed time: %.2fs\n", elapsed_secs);
@@ -221,13 +227,14 @@ static void print_usage(char **argv) {
     printf("Usage: %s [-v] -p <port> -s <filepath> -r <outdirectory> [-n "
            "filename] "
            "[-b "
-           "bytesperpacket]\n",
+           "<dataperpacket>] [-e <fer>] [-d "
+           "<delayus>]\n",
            argv[0]);
 }
 
 static int parse_options(int argc, char **argv) {
     int opt;
-    while ((opt = getopt(argc, argv, ":p:s:r:n:b:v")) != -1) {
+    while ((opt = getopt(argc, argv, ":p:s:r:n:b:e:d:v")) != -1) {
         switch (opt) {
             case 'p':
                 errno = 0;
@@ -260,6 +267,24 @@ static int parse_options(int argc, char **argv) {
                     return -1;
                 }
                 options.bytes_per_packet = true;
+                break;
+            case 'e':
+                errno = 0;
+                induced_fer = atoi(optarg);
+                if (errno != 0) {
+                    perror("FER must be a valid number\n");
+                    return -1;
+                }
+                options.induced_fer = true;
+                break;
+            case 'd':
+                errno = 0;
+                induced_delay = atoi(optarg);
+                if (errno != 0) {
+                    perror("Delay must be a valid number\n");
+                    return -1;
+                }
+                options.induced_delay = true;
                 break;
             case 'v':
                 options.verbose = true;
@@ -310,16 +335,35 @@ int assert_valid_options() {
                    "bytes\n",
                    DEFAULT_BYTES_PER_PACKET);
         }
+        if (options.induced_fer) {
+            fprintf(stderr,
+                    "Application can't induce frame errors when sending\n");
+            return -1;
+        }
+        if (options.induced_delay) {
+            fprintf(stderr,
+                    "Application can't induce processing delay when sending\n");
+            return -1;
+        }
     } else {
         if (options.bytes_per_packet) {
             fprintf(
                 stderr,
-                "Application can't specify bytes per packet when receiving.\n");
+                "Application can't specify bytes per packet when receiving\n");
             return -1;
         }
         if (options.name) {
             fprintf(stderr,
-                    "Application can't specify file name when receiving.\n");
+                    "Application can't specify file name when receiving\n");
+            return -1;
+        }
+    }
+
+    /* Validate FER */
+    if (options.induced_fer) {
+        if (induced_fer < 0 || induced_fer > 100) {
+            fprintf(stderr,
+                    "Induced FER must be a valid probability from 0 to 100\n");
             return -1;
         }
     }
@@ -346,6 +390,12 @@ int main(int argc, char **argv) {
             printf("Sent file: %s\n", file_path);
             break;
         case RECEIVER:
+            if (options.induced_fer) {
+                llsetinducedfer(induced_fer);
+            }
+            if (options.induced_delay) {
+                llsetinduceddelay(induced_delay);
+            }
             if (receive_file(port) != 0) {
                 return -1;
             }
