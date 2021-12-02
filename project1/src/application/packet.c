@@ -27,12 +27,13 @@ int assemble_control_packet(unsigned char *out_packet, int end,
     curr_byte += sizeof(unsigned);
 
     /* File name */
-    unsigned file_name_length = strlen(file_name);
+    unsigned file_name_size = strlen(file_name) + 1;
     out_packet[curr_byte++] = CP_TYPE_FILENAME;
-    memcpy(out_packet + curr_byte, &file_name_length, sizeof(unsigned));
+    memcpy(out_packet + curr_byte, &file_name_size, sizeof(unsigned));
     curr_byte += sizeof(unsigned);
-    memcpy(out_packet + curr_byte, file_name, file_name_length);
-    curr_byte += file_name_length;
+    curr_byte += snprintf((char *)out_packet + curr_byte, file_name_size, "%s",
+                          file_name) +
+                 1;
 
     /* Max bytes sent per packet */
     out_packet[curr_byte++] = CP_TYPE_BYTES_PER_PACKET;

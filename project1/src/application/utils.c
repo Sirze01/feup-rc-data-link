@@ -7,7 +7,7 @@
 
 static int last_percentage = -1;
 
-void print_progress_bar(unsigned curr_byte, unsigned file_size) {
+void print_transfer_progress_bar(unsigned curr_byte, unsigned file_size) {
     float percentage = (float)curr_byte / (float)file_size;
     int percentage_ = (int)(percentage * 100);
     if (percentage_ != last_percentage) {
@@ -33,4 +33,12 @@ double elapsed_seconds(struct timespec *start, struct timespec *end) {
     double start_secs = (double)start->tv_sec + start_secs_decimal;
     double end_secs = (double)end->tv_sec + end_secs_decimal;
     return end_secs - start_secs;
+}
+
+void print_bytes(unsigned char *buf, int size) {
+    printf("size: %d\n", size);
+    for (int i = 0; i < size; i++) {
+        printf("%x ", buf[i]);
+    }
+    printf("\n\n");
 }

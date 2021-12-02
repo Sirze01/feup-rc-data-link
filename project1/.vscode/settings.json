@@ -37,7 +37,8 @@
         "-build/include_subdir",
         "-build/header_guard",
         "-readability/casting",
-        "-runtime/int"
+        "-runtime/int",
+        "-runtime/threadsafe_fn"
     ],
     "cpplint.languages": [
         "c"

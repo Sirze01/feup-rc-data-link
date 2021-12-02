@@ -1,8 +1,9 @@
 #include <fcntl.h>
-#include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <termios.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "data_link.h"
@@ -29,7 +30,9 @@ static unsigned char in_frame[IF_FRAME_SIZE];
 static unsigned char out_frame[IF_FRAME_SIZE];
 
 /* Statistics */
-static unsigned bcc_error_count = 0;
+static unsigned if_error_count = 0;
+static int induced_fer_probability = 0;
+static int induced_receiver_delay_us = 0;
 
 /**
  * @brief Restore previously changed serial port configuration and close file
@@ -103,11 +106,22 @@ static int read_validate_if(int fd, unsigned char addr, unsigned char cmd,
         }
     }
 
+    /* Abort or delay if induced errors are active */
+    if (induced_fer_probability > 0) {
+        int r = rand() % 101;
+        if (r <= induced_fer_probability) {
+            return -2;
+        }
+    }
+    if (induced_receiver_delay_us > 0) {
+        usleep(induced_receiver_delay_us);
+    }
+
     /* Validate header */
     unsigned char expected_if_header[4] = {F_FLAG, addr, cmd, addr ^ cmd};
     for (int i = 0; i < 4; i++) {
         if (in_frame[i] != expected_if_header[i]) {
-            return -1;
+            return -2;
         }
     }
 
@@ -119,7 +133,6 @@ static int read_validate_if(int fd, unsigned char addr, unsigned char cmd,
     }
     unsigned char bcc2 = in_frame[unstuffed_frame_length - 2];
     if (byte_xor(in_frame + 4, unstuffed_frame_length - 6) != bcc2) {
-        bcc_error_count++;
         return -2;
     }
 
@@ -129,10 +142,21 @@ static int read_validate_if(int fd, unsigned char addr, unsigned char cmd,
 }
 
 int llgeterrors() {
-    return bcc_error_count;
+    return if_error_count;
+}
+
+void llsetinducedfer(int probability) {
+    induced_fer_probability = probability;
+}
+
+void llsetinduceddelay(int delay_us) {
+    induced_receiver_delay_us = delay_us;
 }
 
 int llopen(int port, device_role role) {
+    /* Prepare random induced error generation */
+    srand(time(NULL));
+
     /* Assemble device file path */
     char port_path[PATH_MAX];
     int c = snprintf(port_path, PATH_MAX, "/dev/ttyS%d", port);
@@ -280,6 +304,7 @@ int llread(int fd, unsigned char *buffer) {
         if (c == -1) {
             sleep_continue;
         } else if (c == -2) {
+            if_error_count++;
             assemble_suframe(out_frame, TRANSMITTER,
                              SUF_CONTROL_REJ(curr_frame_number));
             if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {

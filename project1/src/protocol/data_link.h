@@ -44,8 +44,13 @@ int llread(int fd, unsigned char *buffer);
 int llclose(int fd);
 
 /**
- * @brief Get number of received packet integrity errors (failed BCC2)
+ * @brief Get number of received information frame integrity errors (failed BCC2
+ * or invalid headers). Only valid when called from a receiver.
  *
  * @return number of errors
  */
 int llgeterrors();
+
+void llsetinducedfer(int probability);
+
+void llsetinduceddelay(int delay_us);

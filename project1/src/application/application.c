@@ -25,7 +25,9 @@ static struct {
     bool name;
     bool bytes_per_packet;
     bool verbose;
-} options = {false, false, false, false, false};
+    bool induced_fer;
+    bool induced_delay;
+} options = {false, false, false, false, false, false, false};
 
 static device_role role;
 static int port = -1;
@@ -34,6 +36,16 @@ static char file_name[PATH_MAX / 4] = {};
 static char file_path[PATH_MAX / 4] = {};
 static int fd = -1;
 static int port_fd = -1;
+static int induced_fer = 0;
+static int induced_delay = 0;
+
+#define verbose_printf                                                         \
+    if (options.verbose)                                                       \
+    printf
+
+#define verbose_fprintf                                                        \
+    if (options.verbose)                                                       \
+    fprintf
 
 static void close_fd() {
     if (close(fd) == -1) {
@@ -42,16 +54,12 @@ static void close_fd() {
 }
 
 static void close_stream() {
-    if (options.verbose) {
-        printf("Trying to close stream...\n");
-    }
+    verbose_printf("Trying to close stream...\n");
     if (llclose(port_fd) == -1) {
         fprintf(stderr, "Failed closing stream\n");
         return;
     }
-    if (options.verbose) {
-        printf("Stream closed\n");
-    }
+    verbose_printf("Stream closed\n");
 }
 
 int send_file(int port) {
@@ -75,22 +83,16 @@ int send_file(int port) {
     atexit(close_fd);
 
     /* Open stream */
-    if (options.verbose) {
-        printf("Trying to open stream on /dev/ttyS%d...\n", port);
-    }
+    verbose_printf("Trying to open stream on /dev/ttyS%d...\n", port);
     if ((port_fd = llopen(port, TRANSMITTER)) == -1) {
         fprintf(stderr, "Failed opening connection\n");
         return -1;
     }
-    if (options.verbose) {
-        printf("Stream open\n");
-    }
+    verbose_printf("Stream open\n");
     atexit(close_stream);
 
     /* Send start packet */
-    if (options.verbose) {
-        printf("Sending start packet...\n");
-    }
+    verbose_printf("Sending start packet...\n");
     char packet_file_name[PATH_MAX];
     assemble_packet_file_name(packet_file_name, file_name, file_path);
     if (send_control_packet(port_fd, st.st_size, bytes_per_packet,
@@ -98,9 +100,7 @@ int send_file(int port) {
         fprintf(stderr, "Failed writing start packet\n");
         return -1;
     }
-    if (options.verbose) {
-        printf("Sent start packet\n");
-    }
+    verbose_printf("Sent start packet\n");
 
     /* Send file to stream */
     if (send_file_data(port_fd, fd, bytes_per_packet, st.st_size) == -1) {
@@ -108,46 +108,34 @@ int send_file(int port) {
     }
 
     /* Send end packet */
-    if (options.verbose) {
-        printf("Sending end packet...\n");
-    }
+    verbose_printf("Sending end packet...\n");
     if (send_control_packet(port_fd, st.st_size, bytes_per_packet,
                             packet_file_name, 1) == -1) {
         fprintf(stderr, "Failed writing end packet\n");
         return -1;
     }
-    if (options.verbose) {
-        printf("Sent end packet\n");
-    }
+    verbose_printf("Sent end packet\n");
 
     return 0;
 }
 
 int receive_file(int port) {
     /* Open stream */
-    if (options.verbose) {
-        printf("Trying to open stream on /dev/ttyS%d...\n", port);
-    }
+    verbose_printf("Trying to open stream on /dev/ttyS%d...\n", port);
     if ((port_fd = llopen(port, RECEIVER)) == -1) {
         fprintf(stderr, "Failed opening connection\n");
         return -1;
     }
-    if (options.verbose) {
-        printf("Stream open\n");
-    }
+    verbose_printf("Stream open\n");
     atexit(close_stream);
 
     /* Read start packet */
-    if (options.verbose) {
-        printf("Reading start packet...\n");
-    }
-    if (read_validate_start_packet(port_fd, file_name) != 0) {
+    verbose_printf("Reading start packet...\n");
+    if (read_validate_control_packet(port_fd, file_name, 0) != 0) {
         fprintf(stderr, "Start packet is not valid\n");
         return -1;
     }
-    if (options.verbose) {
-        printf("Sent start packet\n");
-    }
+    verbose_printf("Read start packet\n");
 
     /* Make new file name if file exists */
     char file_path_[PATH_MAX];
@@ -162,8 +150,9 @@ int receive_file(int port) {
             break;
         }
     }
-    if (options.verbose && changed_name) {
-        printf("File already exists, writing instead to %s\n", file_path_);
+    if (changed_name) {
+        verbose_printf("File already exists, writing instead to %s\n",
+                       file_path_);
     }
 
     /* Open new file with received file name */
@@ -187,15 +176,12 @@ int receive_file(int port) {
     }
 
     /* Validate end packet */
-    if (options.verbose) {
-        printf("Reading end packet...\n");
-    }
-    if (read_validate_end_packet(port_fd) != 0) {
+    verbose_printf("Reading end packet...\n");
+    if (read_validate_control_packet(port_fd, file_name, 1) != 0) {
+        fprintf(stderr, "End packet is not valid\n");
         return -1;
     }
-    if (options.verbose) {
-        printf("Read end packet\n");
-    }
+    verbose_printf("Read end packet\n");
 
     /* Print statistics */
     if (options.verbose) {
@@ -203,10 +189,12 @@ int receive_file(int port) {
         if (stat(file_path_, &st) == -1) {
             perror("Stat");
         } else {
-            int bcc_errors = llgeterrors();
-            float percentage = (float)bcc_errors / (float)st.st_size;
+            int errors = llgeterrors();
+            int no_packets = st.st_size / get_receiver_bytes_per_packet();
+            float percentage = (float)errors / (float)no_packets;
             int percentage_ = (int)(percentage * 100);
-            printf("Error rate: %i%% (%d errors)\n", percentage_, bcc_errors);
+            printf("Error rate: %i%% (%d errors in %d packets)\n", percentage_,
+                   errors, no_packets);
             double elapsed_secs = elapsed_seconds(&start_time, &end_time);
             double kbs = ((double)st.st_size / 1000) / elapsed_secs;
             printf("Elapsed time: %.2fs\n", elapsed_secs);
@@ -221,13 +209,14 @@ static void print_usage(char **argv) {
     printf("Usage: %s [-v] -p <port> -s <filepath> -r <outdirectory> [-n "
            "filename] "
            "[-b "
-           "bytesperpacket]\n",
+           "<dataperpacket>] [-e <fer>] [-d "
+           "<delayus>]\n",
            argv[0]);
 }
 
 static int parse_options(int argc, char **argv) {
     int opt;
-    while ((opt = getopt(argc, argv, ":p:s:r:n:b:v")) != -1) {
+    while ((opt = getopt(argc, argv, ":p:s:r:n:b:e:d:v")) != -1) {
         switch (opt) {
             case 'p':
                 errno = 0;
@@ -261,6 +250,24 @@ static int parse_options(int argc, char **argv) {
                 }
                 options.bytes_per_packet = true;
                 break;
+            case 'e':
+                errno = 0;
+                induced_fer = atoi(optarg);
+                if (errno != 0) {
+                    perror("FER must be a valid number\n");
+                    return -1;
+                }
+                options.induced_fer = true;
+                break;
+            case 'd':
+                errno = 0;
+                induced_delay = atoi(optarg);
+                if (errno != 0) {
+                    perror("Delay must be a valid number\n");
+                    return -1;
+                }
+                options.induced_delay = true;
+                break;
             case 'v':
                 options.verbose = true;
                 break;
@@ -277,23 +284,17 @@ int assert_valid_options() {
 
     /* Validate port */
     if (!options.port) {
-        if (options.verbose) {
-            fprintf(stderr, "Undefined port number\n");
-        }
+        verbose_fprintf(stderr, "Undefined port number\n");
         return -1;
     }
 
     /* Validate path */
     if (!options.role_path) {
-        if (options.verbose) {
-            fprintf(stderr, "No path provided\n");
-        }
+        verbose_fprintf(stderr, "No path provided\n");
         return -1;
     }
     if (strlen(file_path) == 0) {
-        if (options.verbose) {
-            fprintf(stderr, "Empty file path");
-        }
+        verbose_fprintf(stderr, "Empty file path");
         return -1;
     }
 
@@ -305,23 +306,58 @@ int assert_valid_options() {
                 fprintf(stderr, "Invalid bytes per packet\n");
                 return -1;
             }
-        } else if (options.verbose) {
-            printf("No bytes per packet value given, using default size: %d "
-                   "bytes\n",
-                   DEFAULT_BYTES_PER_PACKET);
+        }
+        verbose_printf(
+            "No bytes per packet value given, using default size: %d "
+            "bytes\n",
+            DEFAULT_BYTES_PER_PACKET);
+        if (options.induced_fer) {
+            fprintf(stderr,
+                    "Application can't induce frame errors when sending\n");
+            return -1;
+        }
+        if (options.induced_delay) {
+            fprintf(stderr,
+                    "Application can't induce processing delay when sending\n");
+            return -1;
         }
     } else {
         if (options.bytes_per_packet) {
             fprintf(
                 stderr,
-                "Application can't specify bytes per packet when receiving.\n");
+                "Application can't specify bytes per packet when receiving\n");
             return -1;
         }
         if (options.name) {
             fprintf(stderr,
-                    "Application can't specify file name when receiving.\n");
+                    "Application can't specify file name when receiving\n");
             return -1;
         }
+    }
+
+    /* Validate FER */
+    if (options.induced_fer) {
+        if (induced_fer <= 0 || induced_fer > 100) {
+            fprintf(stderr,
+                    "Induced FER must be a valid probability from 1 to 100\n");
+            return -1;
+        }
+        verbose_printf(
+            "Inducing a probability of %d%% of each frame validation "
+            "failing\n",
+            induced_fer);
+    }
+
+    /* Validate delay */
+    if (options.induced_delay) {
+        if (induced_delay <= 0) {
+            fprintf(stderr, "Induced delay must be a valid positive integer\n");
+            return -1;
+        }
+        verbose_printf(
+            "Inducing a delay of %d microseconds while validating each "
+            "frame\n",
+            induced_delay);
     }
 
     return 0;
@@ -346,6 +382,12 @@ int main(int argc, char **argv) {
             printf("Sent file: %s\n", file_path);
             break;
         case RECEIVER:
+            if (options.induced_fer) {
+                llsetinducedfer(induced_fer);
+            }
+            if (options.induced_delay) {
+                llsetinduceddelay(induced_delay);
+            }
             if (receive_file(port) != 0) {
                 return -1;
             }
