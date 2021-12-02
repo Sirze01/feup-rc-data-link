@@ -150,7 +150,7 @@ int receive_file(int port) {
         return -1;
     }
     if (options.verbose) {
-        printf("Sent start packet\n");
+        printf("Read start packet\n");
     }
 
     /* Make new file name if file exists */
