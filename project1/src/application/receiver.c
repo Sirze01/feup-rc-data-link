@@ -14,6 +14,10 @@ static unsigned file_size = -1;
 static char file_name[PATH_MAX] = "";
 static unsigned bytes_per_packet = -1;
 
+unsigned get_receiver_bytes_per_packet() {
+    return bytes_per_packet;
+}
+
 int read_validate_control_packet(int port_fd, char *out_file_name, int is_end) {
     /* Read start packet */
     int packet_length = -1;

@@ -190,7 +190,7 @@ int receive_file(int port) {
             perror("Stat");
         } else {
             int errors = llgeterrors();
-            int no_packets = st.st_size / bytes_per_packet;
+            int no_packets = st.st_size / get_receiver_bytes_per_packet();
             float percentage = (float)errors / (float)no_packets;
             int percentage_ = (int)(percentage * 100);
             printf("Error rate: %i%% (%d errors in %d packets)\n", percentage_,
