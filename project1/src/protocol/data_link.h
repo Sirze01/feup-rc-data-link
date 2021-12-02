@@ -24,7 +24,7 @@ int llopen(int port, device_role role);
  * @param length buffer length
  * @return number of written chars, -1 in case of error
  */
-int llwrite(int fd, char *buffer, int length);
+int llwrite(int fd, unsigned char *buffer, int length);
 
 /**
  * @brief Read packet from a previously opened data link to buffer.
@@ -33,7 +33,7 @@ int llwrite(int fd, char *buffer, int length);
  * @param buffer output
  * @return number of read chars, -1 in case of error
  */
-int llread(int fd, char *buffer);
+int llread(int fd, unsigned char *buffer);
 
 /**
  * @brief Close a previously opened data link.
@@ -42,3 +42,10 @@ int llread(int fd, char *buffer);
  * @return -1 in case of error, 0 otherwise
  */
 int llclose(int fd);
+
+/**
+ * @brief Get number of received packet integrity errors (failed BCC2)
+ *
+ * @return number of errors
+ */
+int llgeterrors();

@@ -25,11 +25,66 @@
 #define IF_MAX_DATA_SIZE 4092
 #define IF_CONTROL(no_seq) (no_seq << 6)
 
-/* Frame related functions */
-char byte_xor(char *data, int size);
-int stuff_bytes(char *frame, int frame_size);
-int destuff_bytes(char *frame, int frame_size);
-void assemble_suframe(char *out_frame, int role, char ctr);
-int assemble_iframe(char *out_frame, int role, char ctr, char *unstuffed_data,
-                    int unstuffed_data_size);
-int read_frame(char *out_frame, int max_frame_size, int fd);
+/**
+ * @brief Exclusive or recursively for array of bytes
+ *
+ * @param data array
+ * @param size size of array
+ * @return xor
+ */
+unsigned char byte_xor(unsigned char *data, unsigned size);
+
+/**
+ * @brief Stuff flags and escape characters. Frame should be able to hold double
+ * the size of the data, in the worst case scenario. Initial and ending flags
+ * are not stuffed.
+ *
+ * @param frame byte array
+ * @param frame_size array size
+ * @return stuffed frame size, -1 in case of errors
+ */
+int stuff_bytes(unsigned char *frame, unsigned frame_size);
+
+/**
+ * @brief Destuff flags and espace characters from byte array.
+ *
+ * @param frame byte array
+ * @param frame_size array size
+ * @return unstuffed frame size, -1 in case of errors
+ */
+int destuff_bytes(unsigned char *frame, unsigned frame_size);
+
+/**
+ * @brief Build supervisioned/unnumbered frame with given parameters.
+ *
+ * @param out_frame output buffer
+ * @param role transmitter or receiver
+ * @param ctr control byte
+ */
+void assemble_suframe(unsigned char *out_frame, int role, unsigned char ctr);
+
+/**
+ * @brief Build information frame with given parameters. Stuffs given frame
+ * inside.
+ *
+ * @param out_frame output buffer
+ * @param role receiver or transmitter
+ * @param ctr control byte
+ * @param unstuffed_data data array
+ * @param unstuffed_data_size data array size
+ * @return stuffed frame size
+ */
+int assemble_iframe(unsigned char *out_frame, int role, unsigned char ctr,
+                    unsigned char *unstuffed_data,
+                    unsigned unstuffed_data_size);
+
+/**
+ * @brief Read frame from file descriptor. Discards all bytes until a flag is
+ * found. Times out if no bytes read.
+ *
+ * @param out_frame output buffer
+ * @param max_frame_size output buffer size
+ * @param fd file to read
+ * @return read frame size, -1 if timeout or error
+ */
+int read_frame(unsigned char *out_frame, unsigned max_frame_size, int fd);

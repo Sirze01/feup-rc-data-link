@@ -12,18 +12,24 @@
 #define sleep_continue                                                         \
     usleep(5000);                                                              \
     continue
+#define sleep_continue_long                                                    \
+    sleep(1);                                                                  \
+    continue
 
 /* Protocol settings */
 #define BAUDRATE B38400
 #define CONNECTION_TIMEOUT_TS 3
-#define CONNECTION_MAX_RETRIES 3
+#define CONNECTION_MAX_RETRIES 5
 #define NEXT_FRAME_NUMBER(curr) (curr + 1) % 2
 
 /* Buffers */
 static struct termios oldtio;
 static device_role connection_role;
-static char in_frame[IF_FRAME_SIZE];
-static char out_frame[IF_FRAME_SIZE];
+static unsigned char in_frame[IF_FRAME_SIZE];
+static unsigned char out_frame[IF_FRAME_SIZE];
+
+/* Statistics */
+static unsigned bcc_error_count = 0;
 
 /**
  * @brief Restore previously changed serial port configuration and close file
@@ -32,8 +38,12 @@ static char out_frame[IF_FRAME_SIZE];
  * @param fd serial port file descriptor
  */
 static void restore_close_port(int fd) {
-    tcsetattr(fd, TCSADRAIN, &oldtio);
-    close(fd);
+    if (tcsetattr(fd, TCSADRAIN, &oldtio) == -1) {
+        perror("Set termios attributes");
+    }
+    if (close(fd) == -1) {
+        perror("Close stream fd");
+    }
 }
 
 /**
@@ -45,7 +55,7 @@ static void restore_close_port(int fd) {
  * @param cmd expected command
  * @return -1 on success, 0 otherwise
  */
-static int read_validate_suf(int fd, char addr, char cmd) {
+static int read_validate_suf(int fd, unsigned char addr, unsigned char cmd) {
     /* Read frame */
     for (int i = 0;; i++) {
         if (i == CONNECTION_MAX_RETRIES) {
@@ -59,7 +69,8 @@ static int read_validate_suf(int fd, char addr, char cmd) {
     }
 
     /* Validate frame */
-    char expected_suf[SUF_FRAME_SIZE] = {F_FLAG, addr, cmd, addr ^ cmd, F_FLAG};
+    unsigned char expected_suf[SUF_FRAME_SIZE] = {F_FLAG, addr, cmd, addr ^ cmd,
+                                                  F_FLAG};
     for (int i = 0; i < SUF_FRAME_SIZE; i++) {
         if (in_frame[i] != expected_suf[i]) {
             return -2;
@@ -75,10 +86,10 @@ static int read_validate_suf(int fd, char addr, char cmd) {
  * @param addr expected address
  * @param cmd expected command
  * @param out_data_buffer buffer to write data to (no headers)
- * @return read data length
+ * @return -1 if read error, -2 if bcc check error, else read data length
  */
-static int read_validate_if(int fd, char addr, char cmd,
-                            char *out_data_buffer) {
+static int read_validate_if(int fd, unsigned char addr, unsigned char cmd,
+                            unsigned char *out_data_buffer) {
     /* Read frame */
     int frame_length = -1;
     for (int i = 0;; i++) {
@@ -93,7 +104,7 @@ static int read_validate_if(int fd, char addr, char cmd,
     }
 
     /* Validate header */
-    char expected_if_header[4] = {F_FLAG, addr, cmd, addr ^ cmd};
+    unsigned char expected_if_header[4] = {F_FLAG, addr, cmd, addr ^ cmd};
     for (int i = 0; i < 4; i++) {
         if (in_frame[i] != expected_if_header[i]) {
             return -1;
@@ -106,8 +117,9 @@ static int read_validate_if(int fd, char addr, char cmd,
     if (unstuffed_frame_length == -1) {
         return -1;
     }
-    char bcc2 = in_frame[unstuffed_frame_length - 2];
+    unsigned char bcc2 = in_frame[unstuffed_frame_length - 2];
     if (byte_xor(in_frame + 4, unstuffed_frame_length - 6) != bcc2) {
+        bcc_error_count++;
         return -2;
     }
 
@@ -116,27 +128,28 @@ static int read_validate_if(int fd, char addr, char cmd,
     return unstuffed_frame_length - 6;
 }
 
+int llgeterrors() {
+    return bcc_error_count;
+}
+
 int llopen(int port, device_role role) {
     /* Assemble device file path */
     char port_path[PATH_MAX];
     int c = snprintf(port_path, PATH_MAX, "/dev/ttyS%d", port);
-    if (c < 0) {
-        fprintf(stderr, "Output error parsing port path\n");
-        return -1;
-    } else if (c >= PATH_MAX) {
-        fprintf(stderr, "Unreachable port path\n");
+    if (c < 0 || c > PATH_MAX) {
         return -1;
     }
 
     /* Open port */
-    int fd = open(port_path, O_RDWR | O_NOCTTY); /* Do not control terminal */
+    int fd = open(port_path, O_RDWR | O_NOCTTY);
     if (fd == -1) {
-        perror("Error opening port");
+        perror("Open stream");
         return -1;
     }
 
     /* Save current port configuration for later restoration */
     if (tcgetattr(fd, &oldtio) == -1) {
+        perror("Get termios attributes");
         return -1;
     }
 
@@ -150,33 +163,35 @@ int llopen(int port, device_role role) {
     newtio.c_cc[VMIN] = 0; /* Do not block waiting for characters */
     if ((tcflush(fd, TCIOFLUSH) == -1) |
         (tcsetattr(fd, TCSANOW, &newtio) == -1)) {
+        perror("Set termios attributes");
         restore_close_port(fd);
         return -1;
     }
 
     /* Setup connection */
     connection_role = role;
-    for (;;) {
+    for (int i = 0;; i++) {
+        if (i == CONNECTION_MAX_RETRIES) {
+            return -1;
+        }
         if (connection_role == TRANSMITTER) {
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_SET);
             if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
                 perror("Write suframe");
-                sleep_continue;
             }
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_UA) == -1) {
-                sleep_continue;
+                sleep_continue_long;
             }
             return fd;
         } else {
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_SET) == -1) {
-                sleep_continue;
+                sleep_continue_long;
             }
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_UA);
             if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
                 perror("Write suframe");
-                sleep_continue;
             }
             return fd;
         }
@@ -187,23 +202,32 @@ int llopen(int port, device_role role) {
 }
 
 int llclose(int fd) {
-    for (;;) {
+    for (int i = 0;; i++) {
+        if (i == CONNECTION_MAX_RETRIES) {
+            return -1;
+        }
         if (connection_role == TRANSMITTER) {
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_DISC);
-            write(fd, out_frame, SUF_FRAME_SIZE);
+            if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
+                perror("Write suframe");
+            }
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_DISC) == -1) {
-                sleep_continue;
+                sleep_continue_long;
             }
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_UA);
-            write(fd, out_frame, SUF_FRAME_SIZE);
+            if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
+                perror("Write suframe");
+            }
         } else {
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_DISC) == -1) {
-                sleep_continue;
+                sleep_continue_long;
             }
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_DISC);
-            write(fd, out_frame, SUF_FRAME_SIZE);
+            if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
+                perror("Write suframe");
+            }
             while (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                      SUF_CONTROL_UA) == -1) {
                 sleep_continue;
@@ -212,30 +236,27 @@ int llclose(int fd) {
         restore_close_port(fd);
         return 0;
     }
-    fprintf(stderr, "Connection was improperly closed, other end may hang\n");
     restore_close_port(fd);
     return -1;
 }
 
-int llwrite(int fd, char *buffer, int length) {
+int llwrite(int fd, unsigned char *buffer, int length) {
     if (connection_role == RECEIVER) {
-        fprintf(stderr, "Cannot read while open as a receiver\n");
         return -1;
     }
     if (length > IF_MAX_DATA_SIZE) {
-        fprintf(stderr,
-                "Cannot send packet with length greater than %d bytes\n",
-                IF_MAX_DATA_SIZE);
         return -1;
     }
 
-    static char curr_frame_number = 0;
-    int next_frame_number = NEXT_FRAME_NUMBER(curr_frame_number);
+    static unsigned char curr_frame_number = 0;
+    unsigned char next_frame_number = NEXT_FRAME_NUMBER(curr_frame_number);
     int frame_length = assemble_iframe(
         out_frame, TRANSMITTER, IF_CONTROL(curr_frame_number), buffer, length);
 
     for (int tries = 0; tries < CONNECTION_MAX_RETRIES; tries++) {
-        write(fd, out_frame, frame_length);
+        if (write(fd, out_frame, frame_length) == -1) {
+            perror("Write iframe");
+        }
         if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                               SUF_CONTROL_RR(next_frame_number)) != 0) {
             sleep_continue;
@@ -246,14 +267,13 @@ int llwrite(int fd, char *buffer, int length) {
     return -1;
 }
 
-int llread(int fd, char *buffer) {
+int llread(int fd, unsigned char *buffer) {
     if (connection_role == TRANSMITTER) {
-        fprintf(stderr, "Cannot read while open as a transmitter\n");
         return -1;
     }
 
-    static char curr_frame_number = 0;
-    int next_frame_number = NEXT_FRAME_NUMBER(curr_frame_number);
+    static unsigned char curr_frame_number = 0;
+    unsigned char next_frame_number = NEXT_FRAME_NUMBER(curr_frame_number);
     for (int tries = 0; tries < CONNECTION_MAX_RETRIES; tries++) {
         int c = read_validate_if(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                  IF_CONTROL(curr_frame_number), buffer);
@@ -262,12 +282,16 @@ int llread(int fd, char *buffer) {
         } else if (c == -2) {
             assemble_suframe(out_frame, TRANSMITTER,
                              SUF_CONTROL_REJ(curr_frame_number));
-            write(fd, out_frame, SUF_FRAME_SIZE);
+            if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
+                perror("Write suframe");
+            }
             sleep_continue;
         } else {
             assemble_suframe(out_frame, TRANSMITTER,
                              SUF_CONTROL_RR(next_frame_number));
-            write(fd, out_frame, SUF_FRAME_SIZE);
+            if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
+                perror("Write suframe");
+            }
             curr_frame_number = next_frame_number;
             return c;
         }
