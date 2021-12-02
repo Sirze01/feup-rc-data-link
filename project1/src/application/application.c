@@ -14,6 +14,7 @@
 #include "../protocol/data_link.h"
 #include "receiver.h"
 #include "sender.h"
+#include "utils.h"
 
 #define PATH_MAX 4096
 #define DEFAULT_BYTES_PER_PACKET 100
@@ -174,8 +175,15 @@ int receive_file(int port) {
     atexit(close_fd);
 
     /* Read from stream and write to file */
+    struct timespec start_time, end_time;
+    if (clock_gettime(CLOCK_MONOTONIC, &start_time) == -1) {
+        perror("Closk get start time");
+    }
     if (write_file_from_stream(port_fd, fd) != 0) {
         return -1;
+    }
+    if (clock_gettime(CLOCK_MONOTONIC, &end_time) == -1) {
+        perror("Closk get end time");
     }
 
     /* Validate end packet */
@@ -199,6 +207,10 @@ int receive_file(int port) {
             float percentage = (float)bcc_errors / (float)st.st_size;
             int percentage_ = (int)(percentage * 100);
             printf("Error rate: %i%% (%d errors)\n", percentage_, bcc_errors);
+            double elapsed_secs = elapsed_seconds(&start_time, &end_time);
+            double kbs = ((double)st.st_size / 1000) / elapsed_secs;
+            printf("Elapsed time: %.2fs\n", elapsed_secs);
+            printf("Average speed: %.2fKB/s\n", kbs);
         }
     }
 
@@ -340,6 +352,5 @@ int main(int argc, char **argv) {
             printf("Received file: %s\n", file_name);
             break;
     }
-
     return 0;
 }

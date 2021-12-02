@@ -23,6 +23,14 @@ void print_progress_bar(unsigned curr_byte, unsigned file_size) {
                 printf(" ");
             }
         }
-        printf("] %d%% (%u/%u) ", percentage_, curr_byte, file_size);
+        printf("] %d%% (%u/%uB) ", percentage_, curr_byte, file_size);
     }
+}
+
+double elapsed_seconds(struct timespec *start, struct timespec *end) {
+    double start_secs_decimal = (double)start->tv_nsec / 1000000000;
+    double end_secs_decimal = (double)end->tv_nsec / 1000000000;
+    double start_secs = (double)start->tv_sec + start_secs_decimal;
+    double end_secs = (double)end->tv_sec + end_secs_decimal;
+    return end_secs - start_secs;
 }

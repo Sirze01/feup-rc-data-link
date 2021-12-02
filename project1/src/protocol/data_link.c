@@ -18,8 +18,8 @@
 
 /* Protocol settings */
 #define BAUDRATE B38400
-#define CONNECTION_TIMEOUT_TS 5
-#define CONNECTION_MAX_RETRIES 3
+#define CONNECTION_TIMEOUT_TS 3
+#define CONNECTION_MAX_RETRIES 5
 #define NEXT_FRAME_NUMBER(curr) (curr + 1) % 2
 
 /* Buffers */
@@ -86,7 +86,7 @@ static int read_validate_suf(int fd, unsigned char addr, unsigned char cmd) {
  * @param addr expected address
  * @param cmd expected command
  * @param out_data_buffer buffer to write data to (no headers)
- * @return read data length
+ * @return -1 if read error, -2 if bcc check error, else read data length
  */
 static int read_validate_if(int fd, unsigned char addr, unsigned char cmd,
                             unsigned char *out_data_buffer) {

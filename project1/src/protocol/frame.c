@@ -25,16 +25,13 @@ int stuff_bytes(unsigned char *frame, unsigned frame_size) {
 
     int new_size = 0;
     for (int i = 0; i < frame_size; i++) {
-        if (i != 0 && i != frame_size - 1) {
-            if (frame[i] == F_FLAG) {
-                aux_frame[new_size++] = F_ESCAPE_CHAR;
-                aux_frame[new_size++] = 0x5e;
-            } else if (frame[i] == F_ESCAPE_CHAR) {
-                aux_frame[new_size++] = F_ESCAPE_CHAR;
-                aux_frame[new_size++] = 0x5d;
-            } else {
-                aux_frame[new_size++] = frame[i];
-            }
+        bool is_trailing = i == 0 || i == frame_size - 1;
+        if (!is_trailing && frame[i] == F_FLAG) {
+            aux_frame[new_size++] = F_ESCAPE_CHAR;
+            aux_frame[new_size++] = 0x5e;
+        } else if (frame[i] == F_ESCAPE_CHAR) {
+            aux_frame[new_size++] = F_ESCAPE_CHAR;
+            aux_frame[new_size++] = 0x5d;
         } else {
             aux_frame[new_size++] = frame[i];
         }
