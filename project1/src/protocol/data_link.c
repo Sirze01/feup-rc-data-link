@@ -20,7 +20,7 @@
 /* Protocol settings */
 #define BAUDRATE B38400
 #define CONNECTION_TIMEOUT_TS 3
-#define CONNECTION_MAX_RETRIES 5
+#define CONNECTION_MAX_TRIES 5
 #define NEXT_FRAME_NUMBER(curr) (curr + 1) % 2
 
 /* Buffers */
@@ -61,7 +61,7 @@ static void restore_close_port(int fd) {
 static int read_validate_suf(int fd, unsigned char addr, unsigned char cmd) {
     /* Read frame */
     for (int i = 0;; i++) {
-        if (i == CONNECTION_MAX_RETRIES) {
+        if (i == CONNECTION_MAX_TRIES) {
             return -1;
         }
         if (read_frame(in_frame, SUF_FRAME_SIZE, fd) == -1) {
@@ -96,7 +96,7 @@ static int read_validate_if(int fd, unsigned char addr, unsigned char cmd,
     /* Read frame */
     int frame_length = -1;
     for (int i = 0;; i++) {
-        if (i == CONNECTION_MAX_RETRIES) {
+        if (i == CONNECTION_MAX_TRIES) {
             return -1;
         }
         if ((frame_length = read_frame(in_frame, IF_FRAME_SIZE, fd)) == -1) {
@@ -195,7 +195,7 @@ int llopen(int port, device_role role) {
     /* Setup connection */
     connection_role = role;
     for (int i = 0;; i++) {
-        if (i == CONNECTION_MAX_RETRIES) {
+        if (i == CONNECTION_MAX_TRIES) {
             return -1;
         }
         if (connection_role == TRANSMITTER) {
@@ -227,7 +227,7 @@ int llopen(int port, device_role role) {
 
 int llclose(int fd) {
     for (int i = 0;; i++) {
-        if (i == CONNECTION_MAX_RETRIES) {
+        if (i == CONNECTION_MAX_TRIES) {
             return -1;
         }
         if (connection_role == TRANSMITTER) {
@@ -277,7 +277,7 @@ int llwrite(int fd, unsigned char *buffer, int length) {
     int frame_length = assemble_iframe(
         out_frame, TRANSMITTER, IF_CONTROL(curr_frame_number), buffer, length);
 
-    for (int tries = 0; tries < CONNECTION_MAX_RETRIES; tries++) {
+    for (int tries = 0; tries < CONNECTION_MAX_TRIES; tries++) {
         if (write(fd, out_frame, frame_length) == -1) {
             perror("Write iframe");
         }
@@ -298,7 +298,7 @@ int llread(int fd, unsigned char *buffer) {
 
     static unsigned char curr_frame_number = 0;
     unsigned char next_frame_number = NEXT_FRAME_NUMBER(curr_frame_number);
-    for (int tries = 0; tries < CONNECTION_MAX_RETRIES; tries++) {
+    for (int tries = 0; tries < CONNECTION_MAX_TRIES; tries++) {
         int c = read_validate_if(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                  IF_CONTROL(curr_frame_number), buffer);
         if (c == -1) {

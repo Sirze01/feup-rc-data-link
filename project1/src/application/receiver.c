@@ -8,11 +8,9 @@
 #include "receiver.h"
 #include "utils.h"
 
-static unsigned char ctrl_packet[MAX_PACKET_SIZE];
 static unsigned char packet[MAX_PACKET_SIZE];
-static unsigned file_size = -1;
-static char file_name[PATH_MAX] = "";
 static unsigned bytes_per_packet = -1;
+static unsigned file_size = -1;
 
 unsigned get_receiver_bytes_per_packet() {
     return bytes_per_packet;
@@ -24,6 +22,7 @@ int read_validate_control_packet(int port_fd, char *out_file_name, int is_end) {
     if ((packet_length = llread(port_fd, packet)) == -1) {
         return -1;
     }
+    static unsigned char ctrl_packet[MAX_PACKET_SIZE];
     if (!is_end) {
         memcpy(ctrl_packet, packet, packet_length);
     }
@@ -34,6 +33,7 @@ int read_validate_control_packet(int port_fd, char *out_file_name, int is_end) {
         return -2;
     }
     unsigned file_name_size = 0;
+    char file_name[PATH_MAX];
     for (int i = 1; i < packet_length;) {
         switch (packet[i]) {
             case CP_TYPE_SIZE:
@@ -46,7 +46,9 @@ int read_validate_control_packet(int port_fd, char *out_file_name, int is_end) {
                 i += snprintf(file_name, file_name_size, "%s",
                               (char *)packet + i) +
                      1;
-                strncpy(out_file_name, file_name, file_name_size - 1);
+                if (!is_end && out_file_name != NULL) {
+                    strncpy(out_file_name, file_name, file_name_size);
+                }
                 break;
             case CP_TYPE_BYTES_PER_PACKET:
                 memcpy(&bytes_per_packet, packet + i + 2, packet[i + 1]);

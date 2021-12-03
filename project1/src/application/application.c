@@ -141,19 +141,18 @@ int receive_file(int port) {
     /* Make new file name if file exists */
     char file_path_[PATH_MAX];
     snprintf(file_path_, PATH_MAX, "%s/%s", file_path, file_name);
-    bool changed_name = false;
     for (int n = 1;; n++) {
         if (access(file_path_, F_OK) == 0) {
             snprintf(file_path_, PATH_MAX, "%s/(%d)%s", file_path, n,
                      file_name);
-            changed_name = true;
         } else {
+            if (n > 1) {
+                strncpy(file_name, strrchr(file_path_, '/') + 1, PATH_MAX / 4);
+                verbose_printf("File already exists, writing instead to %s\n",
+                               file_path_);
+            }
             break;
         }
-    }
-    if (changed_name) {
-        verbose_printf("File already exists, writing instead to %s\n",
-                       file_path_);
     }
 
     /* Open new file with received file name */
@@ -178,7 +177,7 @@ int receive_file(int port) {
 
     /* Validate end packet */
     verbose_printf("Reading end packet...\n");
-    if (read_validate_control_packet(port_fd, file_name, 1) != 0) {
+    if (read_validate_control_packet(port_fd, NULL, 1) != 0) {
         fprintf(stderr, "End packet is not valid\n");
         return -1;
     }
