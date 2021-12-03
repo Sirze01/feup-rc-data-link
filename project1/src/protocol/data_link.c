@@ -126,7 +126,7 @@ static int read_validate_if(int fd, unsigned char addr, unsigned char cmd,
     }
 
     /* Destuff data and validate BCC2 */
-    int unstuffed_frame_length = destuff_bytes(in_frame, frame_length);
+    int unstuffed_frame_length = destuff_frame(in_frame, frame_length);
 
     if (unstuffed_frame_length == -1) {
         return -1;

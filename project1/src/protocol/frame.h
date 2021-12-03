@@ -43,16 +43,16 @@ unsigned char byte_xor(unsigned char *data, unsigned size);
  * @param frame_size array size
  * @return stuffed frame size, -1 in case of errors
  */
-int stuff_bytes(unsigned char *frame, unsigned frame_size);
+int stuff_frame(unsigned char *frame, unsigned frame_size);
 
 /**
- * @brief Destuff flags and espace characters from byte array.
+ * @brief Destuff flags and espace characters from frame.
  *
  * @param frame byte array
  * @param frame_size array size
  * @return unstuffed frame size, -1 in case of errors
  */
-int destuff_bytes(unsigned char *frame, unsigned frame_size);
+int destuff_frame(unsigned char *frame, unsigned frame_size);
 
 /**
  * @brief Build supervisioned/unnumbered frame with given parameters.

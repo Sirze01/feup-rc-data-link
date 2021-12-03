@@ -18,7 +18,7 @@ unsigned char byte_xor(unsigned char *data, unsigned size) {
     return mxor;
 }
 
-int stuff_bytes(unsigned char *frame, unsigned frame_size) {
+int stuff_frame(unsigned char *frame, unsigned frame_size) {
     if (frame_size > IF_MAX_UNSTUFFED_FRAME_SIZE) {
         return -1;
     }
@@ -40,7 +40,7 @@ int stuff_bytes(unsigned char *frame, unsigned frame_size) {
     return new_size;
 }
 
-int destuff_bytes(unsigned char *frame, unsigned frame_size) {
+int destuff_frame(unsigned char *frame, unsigned frame_size) {
     int new_size = 0;
     for (int i = 0; i < frame_size; i++) {
         if (frame[i] == F_ESCAPE_CHAR) {
@@ -97,7 +97,7 @@ int assemble_iframe(unsigned char *out_frame, int role, unsigned char ctr,
     out_frame[4 + unstuffed_data_size] = bcc;
     out_frame[5 + unstuffed_data_size] = F_FLAG;
 
-    int stuffed_frame_size = stuff_bytes(out_frame, 6 + unstuffed_data_size);
+    int stuffed_frame_size = stuff_frame(out_frame, 6 + unstuffed_data_size);
     return stuffed_frame_size;
 }
 

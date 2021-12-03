@@ -32,8 +32,8 @@ static struct {
 static device_role role;
 static int port = -1;
 static unsigned bytes_per_packet = DEFAULT_BYTES_PER_PACKET;
-static char file_name[PATH_MAX / 4] = {};
-static char file_path[PATH_MAX / 4] = {};
+static char file_name[PATH_MAX / 4];
+static char file_path[PATH_MAX / 4];
 static int fd = -1;
 static int port_fd = -1;
 static int induced_fer = 0;
