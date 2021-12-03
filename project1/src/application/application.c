@@ -144,7 +144,7 @@ int receive_file(int port) {
     bool changed_name = false;
     for (int n = 1;; n++) {
         if (access(file_path_, F_OK) == 0) {
-            snprintf(file_path_, PATH_MAX, "%s/(%d) %s", file_path, n,
+            snprintf(file_path_, PATH_MAX, "%s/(%d)%s", file_path, n,
                      file_name);
             changed_name = true;
         } else {
