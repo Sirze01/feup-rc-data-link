@@ -47,12 +47,20 @@ static int induced_delay = 0;
     if (options.verbose)                                                       \
     fprintf
 
+/**
+ * @brief Closes the file  (Registered with atexit())
+ *
+ */
 static void close_fd() {
     if (close(fd) == -1) {
         perror("Close file");
     }
 }
 
+/**
+ * @brief Closes the port file (Registered with atexit())
+ *
+ */
 static void close_stream() {
     verbose_printf("Trying to close stream...\n");
     if (llclose(port_fd) == -1) {
@@ -62,6 +70,12 @@ static void close_stream() {
     verbose_printf("Stream closed\n");
 }
 
+/**
+ * @brief Flow control when using the Transmitter role, sending a file.
+ *
+ * @param port Port number
+ * @return int -1 in case of error, 0 otherwise
+ */
 int send_file(int port) {
     /* Get file size */
     struct stat st;
@@ -120,6 +134,12 @@ int send_file(int port) {
     return 0;
 }
 
+/**
+ * @brief Flow control for when using the Receiver role, receiving a file.
+ *
+ * @param port Port number
+ * @return int -1 in case of error, 0 otherwise
+ */
 int receive_file(int port) {
     /* Open stream */
     verbose_printf("Trying to open stream on /dev/ttyS%d...\n", port);
@@ -205,6 +225,11 @@ int receive_file(int port) {
     return 0;
 }
 
+/**
+ * @brief Prints application usage help message.
+ *
+ * @param argv Argv pointer to get the invocation method
+ */
 static void print_usage(char **argv) {
     printf("Usage: %s [-v] -p <port> -s <filepath> -r <outdirectory> [-n "
            "filename] "
@@ -214,6 +239,13 @@ static void print_usage(char **argv) {
            argv[0]);
 }
 
+/**
+ * @brief Function to parse the command options.
+ *
+ * @param argc Argument counter
+ * @param argv Argument vector
+ * @return int -1 in case of error, 0 otherwise
+ */
 static int parse_options(int argc, char **argv) {
     int opt;
     while ((opt = getopt(argc, argv, ":p:s:r:n:b:e:d:v")) != -1) {
@@ -278,6 +310,11 @@ static int parse_options(int argc, char **argv) {
     return 0;
 }
 
+/**
+ * @brief Validates the options parsed from parse_options()
+ *
+ * @return int -1 in case of error, 0 otherwise
+ */
 int assert_valid_options() {
     /* Print immediately */
     setbuf(stdout, NULL);

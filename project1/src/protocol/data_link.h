@@ -2,9 +2,22 @@
 
 #include "frame.h"
 
+/**
+ * @brief Roles available for a device
+ *
+ */
 typedef enum device_role { TRANSMITTER, RECEIVER } device_role;
 
+/**
+ * @brief Maximum size of an application layer packer
+ *
+ */
 #define MAX_PACKET_SIZE 4092
+
+/**
+ * @brief Maximum size of the data field of an application layer packet
+ *
+ */
 #define MAX_DATA_PER_PACKET_SIZE 4088
 
 /**
@@ -51,6 +64,17 @@ int llclose(int fd);
  */
 int llgeterrors();
 
+/**
+ * @brief Sets the approximate probability of frame errors
+ *
+ * @param probability Probability of an induced frame error
+ */
 void llsetinducedfer(int probability);
 
+/**
+ * @brief Sets the delay simulated propagation delay in the receiver when
+ * receiving data through the llread function.
+ *
+ * @param delay_us Induced propagation delay
+ */
 void llsetinduceddelay(int delay_us);
