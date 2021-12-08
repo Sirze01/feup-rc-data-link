@@ -108,8 +108,8 @@ static int read_validate_if(int fd, unsigned char addr, unsigned char cmd,
 
     /* Abort or delay if induced errors are active */
     if (induced_fer_probability > 0) {
-        int r = rand() % 101;
-        if (r <= induced_fer_probability) {
+        int r = rand() % 100;
+        if (r < induced_fer_probability) {
             return -2;
         }
     }
