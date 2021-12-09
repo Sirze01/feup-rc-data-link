@@ -71,7 +71,9 @@ static void close_stream() {
 }
 
 /**
- * @brief Flow control when using the Transmitter role, sending a file.
+ * @brief Sends file, getting info from the file, opening it, opening port,
+ * sending the start packet, reading the file and sending it, sending the end
+ * control packet and closing the file and port fd's.
  *
  * @param port Port number
  * @return int -1 in case of error, 0 otherwise
@@ -135,7 +137,11 @@ int send_file(int port) {
 }
 
 /**
- * @brief Flow control for when using the Receiver role, receiving a file.
+ * @brief Receives a file, opening the port, receiving the start control packet,
+ * creating a file wit name according to the start packet name field, reading
+ * from stream and writing to the file the file data, receiving the end packet
+ * and closing the file streams, timing and collecting information (FER, Elapsed
+ * time and Average speed) on the file data retrieval process.
  *
  * @param port Port number
  * @return int -1 in case of error, 0 otherwise
@@ -186,13 +192,13 @@ int receive_file(int port) {
     /* Read from stream and write to file */
     struct timespec start_time, end_time;
     if (clock_gettime(CLOCK_MONOTONIC, &start_time) == -1) {
-        perror("Closk get start time");
+        perror("Clock get start time");
     }
     if (write_file_from_stream(port_fd, fd) != 0) {
         return -1;
     }
     if (clock_gettime(CLOCK_MONOTONIC, &end_time) == -1) {
-        perror("Closk get end time");
+        perror("Clock get end time");
     }
 
     /* Validate end packet */
