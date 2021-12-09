@@ -2,9 +2,22 @@
 
 #include "frame.h"
 
+/**
+ * @brief Roles available for a device
+ *
+ */
 typedef enum device_role { TRANSMITTER, RECEIVER } device_role;
 
+/**
+ * @brief Maximum size of an application layer packer
+ *
+ */
 #define MAX_PACKET_SIZE 4092
+
+/**
+ * @brief Maximum size of the data field of an application layer packet
+ *
+ */
 #define MAX_DATA_PER_PACKET_SIZE 4088
 
 /**
@@ -50,3 +63,4 @@ int llclose(int fd);
  * @return number of errors
  */
 int llgeterrors();
+

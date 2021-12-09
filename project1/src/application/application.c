@@ -43,12 +43,20 @@ static int port_fd = -1;
     if (options.verbose)                                                       \
     fprintf
 
+/**
+ * @brief Closes the file  (Registered with atexit())
+ *
+ */
 static void close_fd() {
     if (close(fd) == -1) {
         perror("Close file");
     }
 }
 
+/**
+ * @brief Closes the port file (Registered with atexit())
+ *
+ */
 static void close_stream() {
     verbose_printf("Trying to close stream...\n");
     if (llclose(port_fd) == -1) {
@@ -58,6 +66,14 @@ static void close_stream() {
     verbose_printf("Stream closed\n");
 }
 
+/**
+ * @brief Sends file, getting info from the file, opening it, opening port,
+ * sending the start packet, reading the file and sending it, sending the end
+ * control packet and closing the file and port fd's.
+ *
+ * @param port Port number
+ * @return int -1 in case of error, 0 otherwise
+ */
 int send_file(int port) {
     /* Get file size */
     struct stat st;
@@ -116,6 +132,17 @@ int send_file(int port) {
     return 0;
 }
 
+/**
+ * @brief Receives a file, opening the port, receiving the start control packet,
+ * creating a file with name according to the start packet name field, reading
+ * from stream and writing to the file the content of the data field, receiving
+ * the end packet and closing the file streams, timing and collecting
+ * information (FER, Elapsed time and Average speed) on the file data retrieval
+ * process.
+ *
+ * @param port Port number
+ * @return int -1 in case of error, 0 otherwise
+ */
 int receive_file(int port) {
     /* Open stream */
     verbose_printf("Trying to open stream on /dev/ttyS%d...\n", port);
@@ -162,13 +189,13 @@ int receive_file(int port) {
     /* Read from stream and write to file */
     struct timespec start_time, end_time;
     if (clock_gettime(CLOCK_MONOTONIC, &start_time) == -1) {
-        perror("Closk get start time");
+        perror("Clock get start time");
     }
     if (write_file_from_stream(port_fd, fd) != 0) {
         return -1;
     }
     if (clock_gettime(CLOCK_MONOTONIC, &end_time) == -1) {
-        perror("Closk get end time");
+        perror("Clock get end time");
     }
 
     /* Validate end packet */
@@ -201,12 +228,24 @@ int receive_file(int port) {
     return 0;
 }
 
+/**
+ * @brief Prints application usage help message.
+ *
+ * @param argv Argv pointer to get the invocation method
+ */
 static void print_usage(char **argv) {
     printf("Usage: %s [-v] -p <port> -s <filepath> -r <outdirectory> [-n "
            "filename] [-b <dataperpacket>]\n",
            argv[0]);
 }
 
+/**
+ * @brief Function to parse the command options.
+ *
+ * @param argc Argument counter
+ * @param argv Argument vector
+ * @return int -1 in case of error, 0 otherwise
+ */
 static int parse_options(int argc, char **argv) {
     int opt;
     while ((opt = getopt(argc, argv, ":p:s:r:n:b:v")) != -1) {
@@ -253,6 +292,11 @@ static int parse_options(int argc, char **argv) {
     return 0;
 }
 
+/**
+ * @brief Validates the options parsed from parse_options()
+ *
+ * @return int -1 in case of error, 0 otherwise
+ */
 int assert_valid_options() {
     /* Print immediately */
     setbuf(stdout, NULL);
