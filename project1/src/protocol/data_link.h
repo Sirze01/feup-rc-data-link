@@ -64,17 +64,3 @@ int llclose(int fd);
  */
 int llgeterrors();
 
-/**
- * @brief Sets the approximate probability of frame errors
- *
- * @param probability Probability of an induced frame error
- */
-void llsetinducedfer(int probability);
-
-/**
- * @brief Sets the delay simulated propagation delay in the receiver when
- * receiving data through the llread function.
- *
- * @param delay_us Induced propagation delay
- */
-void llsetinduceddelay(int delay_us);

@@ -25,9 +25,7 @@ static struct {
     bool name;
     bool bytes_per_packet;
     bool verbose;
-    bool induced_fer;
-    bool induced_delay;
-} options = {false, false, false, false, false, false, false};
+} options = {false, false, false, false, false};
 
 static device_role role;
 static int port = -1;
@@ -36,8 +34,6 @@ static char file_name[PATH_MAX / 4];
 static char file_path[PATH_MAX / 4];
 static int fd = -1;
 static int port_fd = -1;
-static int induced_fer = 0;
-static int induced_delay = 0;
 
 #define verbose_printf                                                         \
     if (options.verbose)                                                       \
@@ -239,10 +235,7 @@ int receive_file(int port) {
  */
 static void print_usage(char **argv) {
     printf("Usage: %s [-v] -p <port> -s <filepath> -r <outdirectory> [-n "
-           "filename] "
-           "[-b "
-           "<dataperpacket>] [-e <fer>] [-d "
-           "<delayus>]\n",
+           "filename] [-b <dataperpacket>]\n",
            argv[0]);
 }
 
@@ -255,7 +248,7 @@ static void print_usage(char **argv) {
  */
 static int parse_options(int argc, char **argv) {
     int opt;
-    while ((opt = getopt(argc, argv, ":p:s:r:n:b:e:d:v")) != -1) {
+    while ((opt = getopt(argc, argv, ":p:s:r:n:b:v")) != -1) {
         switch (opt) {
             case 'p':
                 errno = 0;
@@ -288,24 +281,6 @@ static int parse_options(int argc, char **argv) {
                     return -1;
                 }
                 options.bytes_per_packet = true;
-                break;
-            case 'e':
-                errno = 0;
-                induced_fer = atoi(optarg);
-                if (errno != 0) {
-                    perror("FER must be a valid number\n");
-                    return -1;
-                }
-                options.induced_fer = true;
-                break;
-            case 'd':
-                errno = 0;
-                induced_delay = atoi(optarg);
-                if (errno != 0) {
-                    perror("Delay must be a valid number\n");
-                    return -1;
-                }
-                options.induced_delay = true;
                 break;
             case 'v':
                 options.verbose = true;
@@ -356,16 +331,6 @@ int assert_valid_options() {
                 "bytes\n",
                 DEFAULT_BYTES_PER_PACKET);
         }
-        if (options.induced_fer) {
-            fprintf(stderr,
-                    "Application can't induce frame errors when sending\n");
-            return -1;
-        }
-        if (options.induced_delay) {
-            fprintf(stderr,
-                    "Application can't induce processing delay when sending\n");
-            return -1;
-        }
     } else {
         if (options.bytes_per_packet) {
             fprintf(
@@ -378,31 +343,6 @@ int assert_valid_options() {
                     "Application can't specify file name when receiving\n");
             return -1;
         }
-    }
-
-    /* Validate FER */
-    if (options.induced_fer) {
-        if (induced_fer <= 0 || induced_fer > 100) {
-            fprintf(stderr,
-                    "Induced FER must be a valid probability from 1 to 100\n");
-            return -1;
-        }
-        verbose_printf(
-            "Inducing a probability of %d%% of each frame validation "
-            "failing\n",
-            induced_fer);
-    }
-
-    /* Validate delay */
-    if (options.induced_delay) {
-        if (induced_delay <= 0) {
-            fprintf(stderr, "Induced delay must be a valid positive integer\n");
-            return -1;
-        }
-        verbose_printf(
-            "Inducing a delay of %d microseconds while validating each "
-            "frame\n",
-            induced_delay);
     }
 
     return 0;
@@ -427,12 +367,6 @@ int main(int argc, char **argv) {
             printf("Sent file: %s\n", file_path);
             break;
         case RECEIVER:
-            if (options.induced_fer) {
-                llsetinducedfer(induced_fer);
-            }
-            if (options.induced_delay) {
-                llsetinduceddelay(induced_delay);
-            }
             if (receive_file(port) != 0) {
                 return -1;
             }

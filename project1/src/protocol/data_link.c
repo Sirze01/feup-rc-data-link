@@ -9,30 +9,43 @@
 #include "data_link.h"
 #include "frame.h"
 
-/* Useful for delaying retries */
+/* Local utilitaries */
 #define sleep_continue                                                         \
     usleep(5000);                                                              \
     continue
 #define sleep_continue_long                                                    \
     sleep(1);                                                                  \
     continue
-
-/* Protocol settings */
-#define BAUDRATE B38400
-#define CONNECTION_TIMEOUT_TS 3
-#define CONNECTION_MAX_TRIES 5
 #define NEXT_FRAME_NUMBER(curr) (curr + 1) % 2
+
+/* Protocol settings controllable via compiler flags */
+#define DEFAULT_BAUD B38400
+#define DEFAULT_TIMEOUT 3
+#define DEFAULT_TRIES 5
+#define DEFAULT_FER 0
+#define DEFAULT_DELAY 0
+#ifndef BAUDRATE
+#define BAUDRATE DEFAULT_BAUD
+#endif
+#ifndef CONNECTION_TIMEOUT_TS
+#define CONNECTION_TIMEOUT_TS DEFAULT_TIMEOUT
+#endif
+#ifndef CONNECTION_MAX_TRIES
+#define CONNECTION_MAX_TRIES DEFAULT_TRIES
+#endif
+#ifndef INDUCED_FER
+#define INDUCED_FER DEFAULT_FER
+#endif
+#ifndef INDUCED_DELAY_US
+#define INDUCED_DELAY_US DEFAULT_DELAY
+#endif
 
 /* Buffers */
 static struct termios oldtio;
 static device_role connection_role;
 static unsigned char in_frame[IF_FRAME_SIZE];
 static unsigned char out_frame[IF_FRAME_SIZE];
-
-/* Statistics */
 static unsigned if_error_count = 0;
-static int induced_fer_probability = 0;
-static int induced_receiver_delay_us = 0;
 
 /**
  * @brief Restore previously changed serial port configuration and close file
@@ -107,14 +120,14 @@ static int read_validate_if(int fd, unsigned char addr, unsigned char cmd,
     }
 
     /* Abort or delay if induced errors are active */
-    if (induced_fer_probability > 0) {
-        int r = rand() % 101;
-        if (r <= induced_fer_probability) {
+    if (INDUCED_FER > 0) {
+        int r = rand() % 100;
+        if (r < INDUCED_FER) {
             return -2;
         }
     }
-    if (induced_receiver_delay_us > 0) {
-        usleep(induced_receiver_delay_us);
+    if (INDUCED_DELAY_US > 0) {
+        usleep(INDUCED_DELAY_US);
     }
 
     /* Validate header */
@@ -145,15 +158,29 @@ int llgeterrors() {
     return if_error_count;
 }
 
-void llsetinducedfer(int probability) {
-    induced_fer_probability = probability;
-}
-
-void llsetinduceddelay(int delay_us) {
-    induced_receiver_delay_us = delay_us;
-}
-
 int llopen(int port, device_role role) {
+    /* Alert if default protocol settings were changed */
+    if (BAUDRATE != DEFAULT_BAUD) {
+        printf("Alert: baudrate was changed!\n");
+    }
+    if (CONNECTION_MAX_TRIES != DEFAULT_TRIES) {
+        printf("Alert: max tries were changed to %d!\n", CONNECTION_MAX_TRIES);
+    }
+    if (CONNECTION_TIMEOUT_TS != DEFAULT_TIMEOUT) {
+        printf("Alert: connection timeout was changed to %d ts!\n",
+               CONNECTION_TIMEOUT_TS);
+    }
+    if (INDUCED_FER != DEFAULT_FER) {
+        printf("Alert: FER is being induced on the receiver side with %d%% "
+               "probability!\n",
+               INDUCED_FER);
+    }
+    if (INDUCED_DELAY_US != DEFAULT_DELAY) {
+        printf("Alert: delay is being induced on the receiver side: %d us per "
+               "frame process!\n",
+               INDUCED_DELAY_US);
+    }
+
     /* Prepare random induced error generation */
     srand(time(NULL));
 
