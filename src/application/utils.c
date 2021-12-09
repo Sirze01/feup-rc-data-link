@@ -5,12 +5,11 @@
 #define clear_screen() printf("\033[H\033[J")
 #define PERCENTAGE_BAR_WIDTH 30
 
-static int last_percentage = -1;
-
 void print_transfer_progress_bar(unsigned curr_byte, unsigned file_size) {
+    static int last_percentage = -1;
     float percentage = (float)curr_byte / (float)file_size;
     int percentage_ = (int)(percentage * 100);
-    if (percentage_ != last_percentage) {
+    if (last_percentage != percentage_) {
         last_percentage = percentage_;
         printf("\r[");
         int pos = PERCENTAGE_BAR_WIDTH * percentage;
