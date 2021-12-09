@@ -166,13 +166,13 @@ int receive_file(int port) {
     snprintf(file_path_, PATH_MAX, "%s/%s", file_path, file_name);
     for (int n = 1;; n++) {
         if (access(file_path_, F_OK) == 0) {
-            snprintf(file_path_, PATH_MAX, "%s/(%d)%s", file_path, n,
-                     file_name);
+            snprintf(file_path_, PATH_MAX, "%s/%d-%s", file_path, n, file_name);
         } else {
             if (n > 1) {
                 strncpy(file_name, strrchr(file_path_, '/') + 1, PATH_MAX / 4);
-                verbose_printf("File already exists, writing instead to %s\n",
-                               file_path_);
+                verbose_printf(
+                    "File name already exists, creating new file: %s\n",
+                    file_name);
             }
             break;
         }
