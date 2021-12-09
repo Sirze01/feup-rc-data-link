@@ -13,5 +13,5 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: compile project1 application
-      run: cd project1 && make
+    - name: compile application
+      run: make
