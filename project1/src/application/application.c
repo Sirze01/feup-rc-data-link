@@ -138,10 +138,11 @@ int send_file(int port) {
 
 /**
  * @brief Receives a file, opening the port, receiving the start control packet,
- * creating a file wit name according to the start packet name field, reading
- * from stream and writing to the file the file data, receiving the end packet
- * and closing the file streams, timing and collecting information (FER, Elapsed
- * time and Average speed) on the file data retrieval process.
+ * creating a file with name according to the start packet name field, reading
+ * from stream and writing to the file the content of the data field, receiving
+ * the end packet and closing the file streams, timing and collecting
+ * information (FER, Elapsed time and Average speed) on the file data retrieval
+ * process.
  *
  * @param port Port number
  * @return int -1 in case of error, 0 otherwise
