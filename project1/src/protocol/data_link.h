@@ -50,7 +50,3 @@ int llclose(int fd);
  * @return number of errors
  */
 int llgeterrors();
-
-void llsetinducedfer(int probability);
-
-void llsetinduceddelay(int delay_us);
