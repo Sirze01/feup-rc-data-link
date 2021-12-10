@@ -15,7 +15,7 @@ application: $(OBJECTS)
 	$(CC) $(CFLAGS) -o $(PROG_NAME) $(OBJECTS)
 
 ifdef BAUDRATE
-src/protocol/data_link.o: CFLAGS+=-D BAUDRATE=$(BAUDRATE)
+src/data_link/data_link.o: CFLAGS+=-D BAUDRATE=$(BAUDRATE)
 endif
 ifdef CONNECTION_TIMEOUT_TS
 src/data_link/data_link.o: CFLAGS+=-D CONNECTION_TIMEOUT_TS=$(CONNECTION_TIMEOUT_TS)
