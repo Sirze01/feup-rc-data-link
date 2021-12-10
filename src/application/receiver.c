@@ -17,7 +17,7 @@ unsigned get_receiver_bytes_per_packet() {
 }
 
 int read_validate_control_packet(int port_fd, char *out_file_name, int is_end) {
-    /* Read start packet */
+    /* Read control packet */
     int packet_length = -1;
     if ((packet_length = llread(port_fd, packet)) == -1) {
         return -1;
