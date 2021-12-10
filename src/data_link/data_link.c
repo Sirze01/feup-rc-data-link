@@ -58,7 +58,7 @@ static void restore_close_port(int fd) {
         perror("Set termios attributes");
     }
     if (close(fd) == -1) {
-        perror("Close stream fd");
+        perror("Close stream");
     }
 }
 
@@ -211,7 +211,6 @@ int llopen(int port, device_role role) {
         if (connection_role == TRANSMITTER) {
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_SET);
             if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
-                perror("Write suframe");
                 sleep_continue_long;
             }
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
@@ -252,15 +251,12 @@ int llread(int fd, unsigned char *buffer) {
             if_error_count++;
             assemble_suframe(out_frame, TRANSMITTER,
                              SUF_CONTROL_REJ(curr_frame_number));
-            if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
-                perror("Write suframe");
-            }
+            write(fd, out_frame, SUF_FRAME_SIZE);
             sleep_continue;
         } else {
             assemble_suframe(out_frame, TRANSMITTER,
                              SUF_CONTROL_RR(next_frame_number));
             if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
-                perror("Write suframe");
                 sleep_continue_long;
             }
             curr_frame_number = next_frame_number;
@@ -285,7 +281,6 @@ int llwrite(int fd, unsigned char *buffer, int length) {
 
     for (int tries = 0; tries < CONNECTION_MAX_TRIES; tries++) {
         if (write(fd, out_frame, frame_length) == -1) {
-            perror("Write iframe");
             sleep_continue_long;
         }
         int c = read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
@@ -306,7 +301,6 @@ int llclose(int fd) {
         if (connection_role == TRANSMITTER) {
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_DISC);
             if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
-                perror("Write suframe");
                 sleep_continue_long;
             }
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
@@ -315,7 +309,6 @@ int llclose(int fd) {
             }
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_UA);
             if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
-                perror("Write suframe");
                 sleep_continue_long;
             }
         } else {
@@ -325,7 +318,6 @@ int llclose(int fd) {
             }
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_DISC);
             if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
-                perror("Write suframe");
                 sleep_continue_long;
             }
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
