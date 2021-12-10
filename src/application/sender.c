@@ -42,7 +42,7 @@ int send_file_data(int port_fd, int fd, int bytes_per_packet, int file_size) {
     for (;;) {
         int read_bytes = read(fd, data, bytes_per_packet);
         if (read_bytes < 0) {
-            fprintf(stderr, "\nFailed readind file at offset %u\n", curr_byte);
+            fprintf(stderr, "\nFailed reading file at offset %u\n", curr_byte);
             return -1;
         } else if (read_bytes == 0) {
             break;
