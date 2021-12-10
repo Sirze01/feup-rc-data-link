@@ -1,5 +1,5 @@
 **.bin
 **.o
 /application
-html/**
-latex/**
+**html/**
+**latex/**
