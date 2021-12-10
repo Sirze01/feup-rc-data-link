@@ -3,7 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "../protocol/data_link.h"
+#include "../data_link/data_link.h"
 #include "packet.h"
 #include "sender.h"
 #include "utils.h"

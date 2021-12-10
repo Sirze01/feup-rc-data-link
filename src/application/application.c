@@ -11,7 +11,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "../protocol/data_link.h"
+#include "../data_link/data_link.h"
 #include "receiver.h"
 #include "sender.h"
 #include "utils.h"
