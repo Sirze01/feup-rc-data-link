@@ -11,7 +11,7 @@
 
 /* Local utilitaries */
 #define sleep_continue                                                         \
-    sleep(1);                                                                  \
+    usleep(500000);                                                            \
     continue
 #define NEXT_FRAME_NUMBER(curr) (curr + 1) % 2
 
