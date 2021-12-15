@@ -11,14 +11,14 @@
 
 /* Local utilitaries */
 #define sleep_continue                                                         \
-    usleep(500000);                                                            \
+    sleep(1);                                                                  \
     continue
 #define NEXT_FRAME_NUMBER(curr) (curr + 1) % 2
 
 /* Protocol settings controllable via compiler flags */
 #define DEFAULT_BAUD B38400
 #define DEFAULT_TIMEOUT 5
-#define DEFAULT_TRIES 30
+#define DEFAULT_TRIES 60
 #define DEFAULT_FER 0
 #define DEFAULT_DELAY 0
 #ifndef BAUDRATE
@@ -208,7 +208,7 @@ int llopen(int port, device_role role) {
         if (connection_role == TRANSMITTER) {
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_SET);
             if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
-                sleep_continue;
+                continue;
             }
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_UA) < 0) {
@@ -222,7 +222,7 @@ int llopen(int port, device_role role) {
             }
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_UA);
             if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
-                sleep_continue;
+                continue;
             }
             return fd;
         }
@@ -243,18 +243,18 @@ int llread(int fd, unsigned char *buffer) {
         int c = read_validate_if(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                  IF_CONTROL(curr_frame_number), buffer);
         if (c == -1) {
-            sleep_continue;
+            continue;
         } else if (c == -2) {
             if_error_count++;
             assemble_suframe(out_frame, TRANSMITTER,
                              SUF_CONTROL_REJ(curr_frame_number));
             write(fd, out_frame, SUF_FRAME_SIZE);
-            sleep_continue;
+            continue;
         } else {
             assemble_suframe(out_frame, TRANSMITTER,
                              SUF_CONTROL_RR(next_frame_number));
             if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
-                sleep_continue;
+                continue;
             }
             curr_frame_number = next_frame_number;
             return c;
@@ -278,11 +278,14 @@ int llwrite(int fd, unsigned char *buffer, int length) {
 
     for (int tries = 0; tries < CONNECTION_MAX_TRIES; tries++) {
         if (write(fd, out_frame, frame_length) == -1) {
-            sleep_continue;
+            continue;
         }
-        if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
-                              SUF_CONTROL_RR(next_frame_number)) < 0) {
+        int c = read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
+                                  SUF_CONTROL_RR(next_frame_number));
+        if (c == -1) {
             sleep_continue;
+        } else if (c == -2) {
+            continue;
         }
         curr_frame_number = next_frame_number;
         return length;
@@ -295,7 +298,7 @@ int llclose(int fd) {
         if (connection_role == TRANSMITTER) {
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_DISC);
             if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
-                sleep_continue;
+                continue;
             }
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_DISC) < 0) {
@@ -303,7 +306,7 @@ int llclose(int fd) {
             }
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_UA);
             if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
-                sleep_continue;
+                continue;
             }
         } else {
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
@@ -312,11 +315,11 @@ int llclose(int fd) {
             }
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_DISC);
             if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
-                sleep_continue;
+                continue;
             }
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_UA) < 0) {
-                sleep_continue;
+                continue;
             }
         }
         restore_close_port(fd);

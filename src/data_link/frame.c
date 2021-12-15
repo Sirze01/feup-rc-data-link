@@ -45,7 +45,6 @@ int destuff_frame(unsigned char *frame, unsigned frame_size) {
     for (int i = 0; i < frame_size; i++) {
         if (frame[i] == F_ESCAPE_CHAR) {
             if (i == frame_size - 1) {
-                fprintf(stderr, "Stuffed data is corrupted");
                 return -1;
             }
             if (frame[i + 1] == 0x5e) {
@@ -55,7 +54,6 @@ int destuff_frame(unsigned char *frame, unsigned frame_size) {
                 aux_frame[new_size++] = F_ESCAPE_CHAR;
                 i++;
             } else {
-                fprintf(stderr, "Stuffed data is corrupted");
                 return -1;
             }
         } else {
