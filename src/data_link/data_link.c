@@ -9,16 +9,12 @@
 #include "data_link.h"
 #include "frame.h"
 
-/* Local utilitaries */
-#define sleep_continue                                                         \
-    sleep(1);                                                                  \
-    continue
 #define NEXT_FRAME_NUMBER(curr) (curr + 1) % 2
 
 /* Protocol settings controllable via compiler flags */
 #define DEFAULT_BAUD B38400
 #define DEFAULT_TIMEOUT 5
-#define DEFAULT_TRIES 60
+#define DEFAULT_TRIES 120
 #define DEFAULT_FER 0
 #define DEFAULT_DELAY 0
 #ifndef BAUDRATE
@@ -212,13 +208,13 @@ int llopen(int port, device_role role) {
             }
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_UA) < 0) {
-                sleep_continue;
+                continue;
             }
             return fd;
         } else {
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_SET) < 0) {
-                sleep_continue;
+                continue;
             }
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_UA);
             if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
@@ -283,7 +279,7 @@ int llwrite(int fd, unsigned char *buffer, int length) {
         int c = read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_RR(next_frame_number));
         if (c == -1) {
-            sleep_continue;
+            continue;
         } else if (c == -2) {
             continue;
         }
@@ -302,8 +298,7 @@ int llclose(int fd) {
             }
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_DISC) < 0) {
-                sleep_continue;
-            }
+                continue;
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_UA);
             if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
                 continue;
@@ -311,7 +306,7 @@ int llclose(int fd) {
         } else {
             if (read_validate_suf(fd, F_ADDRESS_TRANSMITTER_COMMANDS,
                                   SUF_CONTROL_DISC) < 0) {
-                sleep_continue;
+                continue;
             }
             assemble_suframe(out_frame, TRANSMITTER, SUF_CONTROL_DISC);
             if (write(fd, out_frame, SUF_FRAME_SIZE) == -1) {
