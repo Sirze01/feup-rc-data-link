@@ -1,19 +1,16 @@
-#include <stdio.h>
-
 #include "utils.h"
-
-#define clear_screen() printf("\033[H\033[J")
-#define PERCENTAGE_BAR_WIDTH 30
+#include <stdio.h>
 
 void print_transfer_progress_bar(unsigned curr_byte, unsigned file_size) {
     static int last_percentage = -1;
+    static const int percentage_bar_width = 30;
     float percentage = (float)curr_byte / (float)file_size;
     int percentage_ = (int)(percentage * 100);
     if (last_percentage != percentage_) {
         last_percentage = percentage_;
         printf("\r[");
-        int pos = PERCENTAGE_BAR_WIDTH * percentage;
-        for (int i = 0; i < PERCENTAGE_BAR_WIDTH; i++) {
+        int pos = percentage_bar_width * percentage;
+        for (int i = 0; i < percentage_bar_width; i++) {
             if (i < pos) {
                 printf("=");
             } else if (i == pos) {
