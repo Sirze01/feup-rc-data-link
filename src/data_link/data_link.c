@@ -103,7 +103,7 @@ static int read_validate_if(int fd, unsigned char addr, unsigned char cmd,
     if (INDUCED_FER > 0) {
         int r = rand() % 100;
         if (r < INDUCED_FER) {
-            return -2;
+            return -1;
         }
     }
     if (INDUCED_DELAY_US > 0) {
