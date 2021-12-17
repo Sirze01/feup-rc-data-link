@@ -14,7 +14,7 @@
 /* Protocol settings controllable via compiler flags */
 #define DEFAULT_BAUD B38400
 #define DEFAULT_TIMEOUT 5
-#define DEFAULT_TRIES 120
+#define DEFAULT_TRIES 60
 #define DEFAULT_FER 0
 #define DEFAULT_DELAY 0
 #ifndef BAUDRATE
@@ -88,7 +88,8 @@ static int read_validate_suf(int fd, unsigned char addr, unsigned char cmd) {
  * @param addr expected address
  * @param cmd expected command
  * @param out_data_buffer buffer to write data to (no headers)
- * @return -1 if read error, -2 if bcc check error, else read data length
+ * @return -1 if read error or bcc1 error, -2 if bcc2 check error, else read
+ * data length
  */
 static int read_validate_if(int fd, unsigned char addr, unsigned char cmd,
                             unsigned char *out_data_buffer) {
@@ -113,7 +114,7 @@ static int read_validate_if(int fd, unsigned char addr, unsigned char cmd,
     unsigned char expected_if_header[4] = {F_FLAG, addr, cmd, addr ^ cmd};
     for (int i = 0; i < 4; i++) {
         if (in_frame[i] != expected_if_header[i]) {
-            return -2;
+            return -1;
         }
     }
 

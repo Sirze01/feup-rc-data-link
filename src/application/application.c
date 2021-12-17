@@ -265,11 +265,17 @@ static int parse_options(int argc, char **argv) {
                     printf("Cannot receive and send at the same time\n");
                     return -1;
                 }
+                if (strlen(optarg) >= PATH_MAX / 4) {
+                    printf("Path length is too large\n");
+                }
                 strncpy(file_path, optarg, PATH_MAX / 4);
                 role = opt == 's' ? TRANSMITTER : RECEIVER;
                 options.role_path = true;
                 break;
             case 'n':
+                if (strlen(optarg) >= PATH_MAX / 4) {
+                    printf("Name length is too large\n");
+                }
                 strncpy(file_name, optarg, PATH_MAX / 4);
                 options.name = true;
                 break;
