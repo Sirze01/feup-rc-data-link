@@ -100,28 +100,17 @@ int assemble_iframe(unsigned char *out_frame, int role, unsigned char ctr,
 }
 
 int read_frame(unsigned char *out_frame, unsigned max_frame_size, int fd) {
-    if (max_frame_size < SUF_FRAME_SIZE) {
-        return -1;
-    }
-
-    /* Discard until flag */
-    out_frame[0] = 0;
-    while (out_frame[0] != F_FLAG) {
-        if (read(fd, out_frame, 1) <= 0) {
-            return -1;
-        }
-    }
-
-    /* Read until flag */
-    for (int i = 1;; i++) {
-        if (i == max_frame_size) {
-            return -1;
-        }
+    for (int i = 0; i < max_frame_size;) {
         if (read(fd, out_frame + i, 1) <= 0) {
             return -1;
         }
-        if (out_frame[i] == F_FLAG) {
+        if (i == 0 && out_frame[i] != F_FLAG) {
+            continue;
+        }
+        if (i != 0 && out_frame[i] == F_FLAG) {
             return i + 1;
         }
+        i++;
     }
+    return -1;
 }
