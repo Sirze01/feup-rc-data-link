@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <termios.h>
 #include <unistd.h>
 
 static char aux_frame[IF_FRAME_SIZE];
@@ -102,15 +103,17 @@ int assemble_iframe(unsigned char *out_frame, int role, unsigned char ctr,
 int read_frame(unsigned char *out_frame, unsigned max_frame_size, int fd) {
     for (int i = 0; i < max_frame_size;) {
         if (read(fd, out_frame + i, 1) <= 0) {
-            return -1;
+            break;
         }
         if (i == 0 && out_frame[i] != F_FLAG) {
             continue;
         }
         if (i != 0 && out_frame[i] == F_FLAG) {
+            tcflush(fd, TCIFLUSH);
             return i + 1;
         }
         i++;
     }
+    tcflush(fd, TCIFLUSH);
     return -1;
 }

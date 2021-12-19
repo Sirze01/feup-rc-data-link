@@ -88,7 +88,7 @@ static int read_validate_suf(int fd, unsigned char addr, unsigned char cmd) {
  * @param addr expected address
  * @param cmd expected command
  * @param out_data_buffer buffer to write data to (no headers)
- * @return -1 if read error or bcc1 error, -2 if bcc2 check error, else read
+ * @return -1 if read error, -2 if header error, -3 if bcc2 error, else read
  * data length
  */
 static int read_validate_if(int fd, unsigned char addr, unsigned char cmd,
@@ -114,7 +114,7 @@ static int read_validate_if(int fd, unsigned char addr, unsigned char cmd,
     unsigned char expected_if_header[4] = {F_FLAG, addr, cmd, addr ^ cmd};
     for (int i = 0; i < 4; i++) {
         if (in_frame[i] != expected_if_header[i]) {
-            return -1;
+            return -2;
         }
     }
 
@@ -125,7 +125,7 @@ static int read_validate_if(int fd, unsigned char addr, unsigned char cmd,
     }
     unsigned char bcc2 = in_frame[unstuffed_frame_length - 2];
     if (byte_xor(in_frame + 4, unstuffed_frame_length - 6) != bcc2) {
-        return -2;
+        return -3;
     }
 
     /* Copy data to output buffer */
@@ -237,6 +237,11 @@ int llread(int fd, unsigned char *buffer) {
         if (c == -1) {
             continue;
         } else if (c == -2) {
+            assemble_suframe(out_frame, TRANSMITTER,
+                             SUF_CONTROL_RR(curr_frame_number));
+            write(fd, out_frame, SUF_FRAME_SIZE);
+            continue;
+        } else if (c == -3) {
             if_error_count++;
             assemble_suframe(out_frame, TRANSMITTER,
                              SUF_CONTROL_REJ(curr_frame_number));
